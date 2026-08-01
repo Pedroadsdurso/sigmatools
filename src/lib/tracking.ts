@@ -19,6 +19,8 @@ declare global {
     traffikPixel?: TraffikPixel;
     fbq?: (...args: unknown[]) => void;
     traffik?: { getData?: () => Record<string, unknown>; data?: Record<string, unknown> };
+    /** Definida pelo layout so quando CONTEXT === "production" no Netlify. */
+    __traffikAtivo?: number;
   }
 }
 
@@ -75,7 +77,10 @@ function send(event: string, extra?: Record<string, unknown>) {
       window.traffikPixel.track(event, payload);
       return;
     }
-    if (typeof window.fbq === "function") {
+    // Fallback so vale quando o rastreamento esta ligado e a Traffik nao
+    // carregou (bloqueador, falha de rede): ai um evento sem dedup e melhor
+    // que nenhum. Num preview, onde a Traffik nem foi injetada, nao dispara.
+    if (window.__traffikAtivo && typeof window.fbq === "function") {
       const { value, currency } = extra ?? {};
       window.fbq("track", event, value != null ? { value, currency: currency ?? "BRL" } : {});
     }
