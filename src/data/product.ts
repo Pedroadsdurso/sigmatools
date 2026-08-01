@@ -1,6 +1,25 @@
 import type { Coupon, OrderBump, Product, ShippingOption } from "@/types/product";
 
 /**
+ * ⚠️ MODO TESTE — TROQUE PARA `false` ANTES DE VENDER DE VERDADE.
+ *
+ * Com `true` o produto sai por R$ 5,00 (R$ 4,75 no Pix), para validar o fluxo
+ * completo de pagamento gastando pouco. O preco vale para a loja INTEIRA e
+ * tambem para a cobranca gerada na OnyxPag, porque lib/pricing.ts calcula o
+ * total a partir daqui — nao existe um preco de vitrine e outro de cobranca.
+ *
+ * Um unico lugar para reverter: esta constante.
+ */
+export const MODO_TESTE = true;
+
+const PRECO = {
+  real: { listCents: 19790, priceCents: 8990 },
+  teste: { listCents: 990, priceCents: 500 },
+} as const;
+
+const precoAtivo = MODO_TESTE ? PRECO.teste : PRECO.real;
+
+/**
  * Conteudo extraido do sigmatools.site em 31/07/2026.
  * Precos em centavos para evitar erro de ponto flutuante no calculo do Pix.
  */
@@ -13,8 +32,8 @@ export const product: Product = {
   seller: "SGT Tools Oficial",
   rating: 4.9,
   ratingCount: 2847,
-  listPriceCents: 19790,
-  priceCents: 8990,
+  listPriceCents: precoAtivo.listCents,
+  priceCents: precoAtivo.priceCents,
   pixDiscount: 0.05,
   installments: 10,
   stock: 7,
@@ -193,7 +212,7 @@ export const shippingOptions: ShippingOption[] = [
     id: "sedex",
     label: "Sedex",
     eta: "2 a 3 dias úteis ·",
-    priceCents: 1990,
+    priceCents: MODO_TESTE ? 190 : 1990,
     carrierLogo: "/images/shipping/correios.webp",
     carrierName: "Correios",
   },
@@ -221,8 +240,8 @@ export const orderBumps: OrderBump[] = [
       "Shampoo automotivo concentrado pH neutro — diluição até 1:400, espuma densa e altíssimo rendimento. Combina perfeitamente com o Snow Foam SGT.",
     productName: "Vonixx V-FLOC Lava Autos Concentrado 500ml",
     image: "/images/bumps/vfloc.webp",
-    listPriceCents: 4990,
-    priceCents: 2990,
+    listPriceCents: MODO_TESTE ? 290 : 4990,
+    priceCents: MODO_TESTE ? 100 : 2990,
     cta: "Sim, quero adicionar!",
   },
   {
@@ -232,8 +251,8 @@ export const orderBumps: OrderBump[] = [
       "Toalha PVA 3D 64x43cm — seca o carro inteiro sem marcas d'água em minutos. Super absorvente, dura anos e não risca a pintura.",
     productName: "Toalha de Secagem PVA 3D Vonixx 64x43cm",
     image: "/images/bumps/toalha-pva.webp",
-    listPriceCents: 5990,
-    priceCents: 3490,
+    listPriceCents: MODO_TESTE ? 390 : 5990,
+    priceCents: MODO_TESTE ? 200 : 3490,
     cta: "Sim, quero secar sem marcas!",
   },
 ];
