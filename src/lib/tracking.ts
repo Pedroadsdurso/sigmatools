@@ -32,8 +32,39 @@ export function attribution(): Record<string, unknown> {
   }
 }
 
+/**
+ * Guarda contra disparo duplicado.
+ *
+ * Em producao cada evento estava saindo DUAS vezes: o `beforeInteractive` do
+ * Next no App Router injeta o script inline no HTML e o reexecuta na
+ * hidratacao. O event_id deterministico da Traffik salvava a Meta (ela
+ * deduplica por id), mas o servidor da Traffik recebia dois POSTs por acao.
+ *
+ * A janela curta bloqueia a repeticao acidental sem impedir um disparo
+ * legitimo mais tarde — o cliente pode voltar e clicar em comprar de novo.
+ */
+const JANELA_MS = 5000;
+const enviados = new Map<string, number>();
+
+function duplicado(chave: string): boolean {
+  const agora = Date.now();
+  const anterior = enviados.get(chave);
+
+  for (const [k, t] of enviados) {
+    if (agora - t > JANELA_MS) enviados.delete(k);
+  }
+
+  if (anterior !== undefined && agora - anterior < JANELA_MS) return true;
+  enviados.set(chave, agora);
+  return false;
+}
+
 function send(event: string, extra?: Record<string, unknown>) {
   if (typeof window === "undefined") return;
+
+  // A chave inclui o valor: dois InitiateCheckout com carrinhos diferentes sao
+  // acoes distintas e devem passar os dois.
+  if (duplicado(`${event}:${extra?.value ?? ""}:${extra?.transacao ?? ""}`)) return;
 
   // O rastreio de tráfego (utm_*, fbclid, click_id) viaja junto de todo evento,
   // para o relatório da Traffik ligar a venda à campanha que a originou.

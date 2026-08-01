@@ -29,8 +29,9 @@ export function Reviews({ product }: { product: Product }) {
             <Image
               src={r.photo}
               alt={r.photoAlt}
-              width={676}
+              width={700}
               height={1200}
+              sizes="(max-width: 640px) 100vw, 340px"
               className="mb-3 max-h-[280px] w-full rounded-md object-cover"
               loading="lazy"
             />

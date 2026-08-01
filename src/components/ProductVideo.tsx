@@ -10,12 +10,16 @@ export function ProductVideo({ product }: { product: Product }) {
       </h2>
 
       <div className="flex flex-col items-center px-4 py-4 lg:px-6">
-        {/* O original serve um mp4 com controles nativos, sem autoplay. */}
+        {/* O original serve um mp4 com controles nativos, sem autoplay.
+            preload="none" + poster: o arquivo tem 5,8 MB e fica bem abaixo da
+            dobra. Com "metadata" o navegador ja abria conexao e baixava o
+            cabecalho em toda visita, mesmo de quem nunca da play. */}
         <video
           src={product.video.src}
+          poster="/images/product/p1.webp"
           controls
           playsInline
-          preload="metadata"
+          preload="none"
           className="aspect-[9/16] max-h-[560px] w-auto rounded-md bg-black"
         />
         <p className="mt-3 text-center text-sm font-semibold text-muted-foreground">

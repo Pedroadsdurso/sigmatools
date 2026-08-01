@@ -38,8 +38,9 @@ export function ProductGallery({ images }: ProductGalleryProps) {
           key={current.src}
           src={current.src}
           alt={current.alt}
-          width={1000}
-          height={1000}
+          width={900}
+          height={900}
+          sizes="(max-width: 1024px) 100vw, 520px"
           className="h-full w-full object-contain"
           priority={active === 0}
         />

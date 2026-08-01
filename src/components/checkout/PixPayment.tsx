@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Check, Copy, Loader2 } from "lucide-react";
 import { formatBRL } from "@/lib/format";
-import { trackPurchase } from "@/lib/tracking";
 
 export interface PixCharge {
   id: string;
@@ -18,6 +18,7 @@ export interface PixCharge {
 const POLL_MS = 4000;
 
 export function PixPayment({ charge }: { charge: PixCharge }) {
+  const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [paid, setPaid] = useState(false);
 
@@ -31,10 +32,11 @@ export function PixPayment({ charge }: { charge: PixCharge }) {
         if (!res.ok) return;
         const data: { paid?: boolean } = await res.json();
         if (!cancelled && data.paid) {
-          // Purchase dispara uma vez só: o efeito sai do ar assim que paid
-          // vira true, então o polling não repete a venda.
-          trackPurchase(charge.amountCents, charge.id);
           setPaid(true);
+          // O Purchase NAO dispara aqui — quem dispara e a pagina de obrigado,
+          // que confirma o pagamento no servidor. Assim a venda so e contada
+          // uma vez, e apenas com status verificado.
+          router.replace(`/obrigado?tx=${encodeURIComponent(charge.id)}`);
         }
       } catch {
         // Falha de rede no polling e transitoria — a proxima tentativa resolve.
@@ -45,7 +47,7 @@ export function PixPayment({ charge }: { charge: PixCharge }) {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [charge.id, paid]);
+  }, [charge.id, paid, router]);
 
   async function copy() {
     await navigator.clipboard.writeText(charge.pixCode);
@@ -60,9 +62,9 @@ export function PixPayment({ charge }: { charge: PixCharge }) {
           <Check className="size-8 text-success" aria-hidden />
         </span>
         <h2 className="text-lg">Pagamento confirmado!</h2>
-        <p className="mt-2 max-w-sm text-sm font-semibold text-muted-foreground">
-          Recebemos seu Pix. Seu pedido será postado em até 1 dia útil e você vai
-          receber o código de rastreio por e-mail.
+        <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" aria-hidden />
+          Redirecionando...
         </p>
       </div>
     );

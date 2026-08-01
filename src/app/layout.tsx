@@ -29,7 +29,7 @@ export default function RootLayout({
     <html lang="pt-BR" className={`${jakarta.variable} h-full`}>
       <head>
         {/* Meta Pixel Code */}
-        <Script id="meta-pixel" strategy="beforeInteractive">{`
+        <Script id="meta-pixel" strategy="afterInteractive">{`
 !function(f,b,e,v,n,t,s)
 {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
 n.callMethod.apply(n,arguments):n.queue.push(arguments)};
@@ -54,7 +54,7 @@ fbq('track', 'PageView');
         {/* End Meta Pixel Code */}
 
         {/* Traffik — captura de UTMs */}
-        <Script id="traffik-utm" strategy="beforeInteractive">{`
+        <Script id="traffik-utm" strategy="afterInteractive">{`
 (function () {
   "use strict";
   var ACCOUNT = "cmry50c910000p4k8lenqkd8e";
@@ -113,7 +113,7 @@ fbq('track', 'PageView');
 `}</Script>
 
         {/* Traffik Pixel */}
-        <Script id="traffik-pixel" strategy="beforeInteractive">{`
+        <Script id="traffik-pixel" strategy="afterInteractive">{`
 (function () {
   "use strict";
   var CONFIG = "cms9ny4pg000004jn6s8hceyq";
