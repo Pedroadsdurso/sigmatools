@@ -62,16 +62,34 @@ export class OnyxPagError extends Error {
   }
 }
 
-function authHeader(): string {
-  const pk = process.env.ONYXPAG_PUBLIC_KEY;
-  const sk = process.env.ONYXPAG_SECRET_KEY;
-
-  if (!pk || !sk) {
-    throw new OnyxPagError(
-      "ONYXPAG_PUBLIC_KEY e ONYXPAG_SECRET_KEY precisam estar definidas no ambiente.",
-      500,
-    );
+/**
+ * Erro de configuracao do ambiente, nao do gateway.
+ *
+ * Separado de OnyxPagError porque a causa e o conserto sao outros: aqui nao
+ * adianta tentar de novo, faltam variaveis no servidor. Confundir os dois foi
+ * o que fez a falha em producao aparecer como "tente novamente" generico.
+ */
+export class OnyxPagConfigError extends Error {
+  constructor(readonly missing: string[]) {
+    super(`Variaveis ausentes no ambiente: ${missing.join(", ")}`);
+    this.name = "OnyxPagConfigError";
   }
+}
+
+/** Diz se as credenciais existem, sem revelar valor nenhum. */
+export function credentialsStatus(): { ok: boolean; missing: string[] } {
+  const missing: string[] = [];
+  if (!process.env.ONYXPAG_PUBLIC_KEY) missing.push("ONYXPAG_PUBLIC_KEY");
+  if (!process.env.ONYXPAG_SECRET_KEY) missing.push("ONYXPAG_SECRET_KEY");
+  return { ok: missing.length === 0, missing };
+}
+
+function authHeader(): string {
+  const { ok, missing } = credentialsStatus();
+  if (!ok) throw new OnyxPagConfigError(missing);
+
+  const pk = process.env.ONYXPAG_PUBLIC_KEY!;
+  const sk = process.env.ONYXPAG_SECRET_KEY!;
   return `Basic ${Buffer.from(`${pk}:${sk}`).toString("base64")}`;
 }
 

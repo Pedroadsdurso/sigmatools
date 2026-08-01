@@ -159,13 +159,15 @@ fbq('track', 'PageView');
   var fila = [], relogio = null, inicio = 0;
 
   function temFbq() { return typeof window.fbq === "function"; }
-  function atirar(event, id) { window.fbq("track", event, {}, { eventID: id }); }
+  // params repassa value/currency ao pixel nativo. Sem isso o Purchase chega a
+  // Meta sem valor e nao alimenta ROAS nem lances por valor.
+  function atirar(event, id, params) { window.fbq("track", event, params || {}, { eventID: id }); }
   function parar() { if (relogio) { clearInterval(relogio); relogio = null; } }
 
   function drenar() {
     var pend = fila; fila = []; parar();
     for (var i = 0; i < pend.length; i++) {
-      try { atirar(pend[i].e, pend[i].id); relatar(pend[i].e, pend[i].id, "adiado-ok"); }
+      try { atirar(pend[i].e, pend[i].id, pend[i].p); relatar(pend[i].e, pend[i].id, "adiado-ok"); }
       catch (err) { aviso("falha ao espelhar " + pend[i].e + ": " + err); relatar(pend[i].e, pend[i].id, "erro"); }
     }
   }
@@ -190,21 +192,25 @@ fbq('track', 'PageView');
     }, PASSO_MS);
   }
 
-  function espelhar(event, id) {
+  function espelhar(event, id, params) {
     if (ALHEIOS.indexOf(event) > -1) return "alheio";
     if (!NATIVO) return "sem-nativo";
     if (temFbq()) {
-      try { atirar(event, id); return "ok"; }
+      try { atirar(event, id, params); return "ok"; }
       catch (err) { aviso("falha ao espelhar " + event + ": " + err); return "erro"; }
     }
-    fila.push({ e: event, id: id });
+    fila.push({ e: event, id: id, p: params });
     aguardar();
     return "adiado";
   }
 
   function track(event, extra) {
     var id = eid(event);
-    var espelho = espelhar(event, id);
+    // Só value/currency vão ao pixel nativo; o resto de extra é interno da
+    // Traffik e não deve virar parâmetro de anúncio.
+    var params = {};
+    if (extra && extra.value != null) { params.value = extra.value; params.currency = extra.currency || "BRL"; }
+    var espelho = espelhar(event, id, params);
     var payload = { pixelConfigId: CONFIG, event: event, eventId: id, url: location.href, fbclid: fbclid(), espelho: espelho, det: DET };
     if (extra) for (var k in extra) payload[k] = extra[k];
     enviar(payload);

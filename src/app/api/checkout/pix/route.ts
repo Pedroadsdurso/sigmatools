@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import QRCode from "qrcode";
-import { createPixCharge, OnyxPagError, type PixItem } from "@/lib/onyxpag";
+import {
+  createPixCharge,
+  OnyxPagConfigError,
+  OnyxPagError,
+  type PixItem,
+} from "@/lib/onyxpag";
 import { isValidCpf, onlyDigits } from "@/lib/cpf";
 import { orderBumps, product, shippingOptions } from "@/data/product";
 import { calculateTotals, clampQty, findCoupon } from "@/lib/pricing";
@@ -8,6 +13,29 @@ import { calculateTotals, clampQty, findCoupon } from "@/lib/pricing";
 export const runtime = "nodejs";
 /** Cobranca nunca pode ser pre-renderizada nem cacheada. */
 export const dynamic = "force-dynamic";
+
+/**
+ * Origem publica do site, usada em source_url e postbackUrl.
+ *
+ * A OnyxPag exige um source_url HTTP(S) valido, e recusa a cobranca se receber
+ * localhost. Em producao atras de proxy (Vercel e afins) o request.url chega
+ * com host interno, por isso a ordem: variavel explicita > cabecalhos do proxy
+ * > url da requisicao.
+ */
+function publicOrigin(request: Request): string {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (configured && !/localhost|127\.0\.0\.1/.test(configured)) {
+    return configured.replace(/\/$/, "");
+  }
+
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  if (host) {
+    const proto = request.headers.get("x-forwarded-proto") ?? "https";
+    return `${proto}://${host}`;
+  }
+
+  return new URL(request.url).origin;
+}
 
 interface Body {
   name?: string;
@@ -87,7 +115,7 @@ export async function POST(request: Request) {
     });
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? new URL(request.url).origin;
+  const siteUrl = publicOrigin(request);
 
   try {
     const charge = await createPixCharge({
@@ -121,6 +149,19 @@ export async function POST(request: Request) {
       expiresAt: charge.expiresAt,
     });
   } catch (err) {
+    // Falta de credencial e problema de deploy, nao instabilidade do gateway.
+    // Distinguir os dois evita o "tente novamente" eterno de producao.
+    if (err instanceof OnyxPagConfigError) {
+      console.error("[onyxpag] CONFIGURACAO AUSENTE:", err.message);
+      return NextResponse.json(
+        {
+          error:
+            "Gateway de pagamento nao configurado no servidor. Defina ONYXPAG_PUBLIC_KEY e ONYXPAG_SECRET_KEY nas variaveis de ambiente da hospedagem.",
+          missing: err.missing,
+        },
+        { status: 503 },
+      );
+    }
     if (err instanceof OnyxPagError) {
       console.error("[onyxpag] falha ao criar cobranca:", err.message, err.body);
       return NextResponse.json(

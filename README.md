@@ -1,171 +1,95 @@
-# AI Website Cloner Template
+# SGT Tools — loja
 
-<a href="https://github.com/JCodesMore/ai-website-cloner-template/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License" /></a> <a href="https://github.com/JCodesMore/ai-website-cloner-template/stargazers"><img src="https://img.shields.io/github/stars/JCodesMore/ai-website-cloner-template?style=flat" alt="Stars" /></a> <a href="https://discord.gg/hrTSX5yTpB"><img src="https://img.shields.io/discord/1400896964597383279?label=discord" alt="Discord" /></a> <img src="https://img.shields.io/endpoint?url=https://gittokens.rsamf.com/badge/JCodesMore/ai-website-cloner-template" alt="tokens" />
+Loja de produto único (Canhão de Espuma à Gravidade SIGMA 10930) em Next.js 16,
+com checkout próprio de 3 etapas e pagamento Pix pela OnyxPag.
 
-A reusable template for reverse-engineering any website into a clean, modern Next.js codebase using AI coding agents. 
+## Stack
 
-**Recommended: [Claude Code](https://docs.anthropic.com/en/docs/claude-code) with Opus 4.8 for best results** — but works with a variety of AI coding agents.
+- Next.js 16 (App Router, React 19, TypeScript strict)
+- Tailwind CSS v4 com tokens `oklch`
+- Pix via [OnyxPag](https://doc.onyxpag.com/)
+- Rastreamento: Traffik (UTMs + pixel) e Meta Pixel
 
-Point it at a URL, run `/clone-website`, and your AI agent will inspect the site, extract design tokens and assets, write component specs, and dispatch parallel builders to reconstruct every section.
-
-## Demo
-
-[![Watch the demo](docs/design-references/comparison.png)](https://youtu.be/O669pVZ_qr0)
-
-> Click the image above to watch the full demo on YouTube.
-
-## Quick Start
-
-> **Important:** Start by making your own copy with GitHub's **Use this template** button. Do not clone this template repository directly for your website project, and do not open pull requests here with your generated website.
-
-1. **Create your own repository from this template**
-
-   On the GitHub page for this project, click **Use this template**, then click **Create a new repository**.
-
-   Give your new repository a name, choose whether it should be public or private, then click **Create repository**. If GitHub shows an **Include all branches** option, you can leave it off.
-
-   This gives you your own separate project to work in, so your website changes stay in your account instead of coming back to the main template.
-
-2. **Open your new repository on your computer**
-
-   After GitHub creates your copy, open that new repository. Click **Code** and open or clone your new repository with your preferred coding tool.
-
-   If you use the terminal, the command will look like this:
-
-   ```bash
-   git clone https://github.com/YOUR-USERNAME/YOUR-NEW-REPOSITORY.git
-   cd YOUR-NEW-REPOSITORY
-   ```
-
-3. **Install dependencies**
-   ```bash
-   npm install
-   ```
-4. **Start your AI agent** — Claude Code recommended:
-   ```bash
-   claude --chrome
-   ```
-5. **Run the skill**:
-   ```
-   /clone-website <target-url1> [<target-url2> ...]
-   ```
-6. **Customize** (optional) — after the base clone is built, modify as needed
-
-> Using a different agent? Open `AGENTS.md` for project instructions — most agents pick it up automatically.
-
-## Supported Platforms
-
-| Agent                                                         | Status                     |
-| ------------------------------------------------------------- | -------------------------- |
-| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | **Recommended** — Opus 4.8 |
-| [Codex CLI](https://github.com/openai/codex)                  | Supported                  |
-| [OpenCode](https://opencode.ai/)                              | Supported                  |
-| [GitHub Copilot](https://github.com/features/copilot)         | Supported                  |
-| [Cursor](https://cursor.com/)                                 | Supported                  |
-| [Windsurf](https://codeium.com/windsurf)                      | Supported                  |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli)     | Supported                  |
-| [Cline](https://github.com/cline/cline)                       | Supported                  |
-| [Roo Code](https://github.com/RooCodeInc/Roo-Code)            | Supported                  |
-| [Continue](https://continue.dev/)                             | Supported                  |
-| [Amazon Q](https://aws.amazon.com/q/developer/)               | Supported                  |
-| [Augment Code](https://www.augmentcode.com/)                  | Supported                  |
-| [Aider](https://aider.chat/)                                  | Supported                  |
-
-## Prerequisites
-
-- [Node.js](https://nodejs.org/) 24+
-- An AI coding agent (see [Supported Platforms](#supported-platforms))
-
-## Tech Stack
-
-- **Next.js 16** — App Router, React 19, TypeScript strict
-- **shadcn/ui** — Radix primitives + Tailwind CSS v4
-- **Tailwind CSS v4** — oklch design tokens
-- **Lucide React** — default icons (replaced by extracted SVGs during cloning)
-
-## How It Works
-
-The `/clone-website` skill runs a multi-phase pipeline:
-
-1. **Reconnaissance** — screenshots, design token extraction, interaction sweep (scroll, click, hover, responsive)
-2. **Foundation** — updates fonts, colors, globals, downloads all assets
-3. **Component Specs** — writes detailed spec files (`docs/research/components/`) with exact computed CSS values, states, behaviors, and content
-4. **Parallel Build** — dispatches builder agents in git worktrees, one per section/component
-5. **Assembly & QA** — merges worktrees, wires up the page, runs visual diff against the original
-
-Each builder agent receives the full component specification inline — exact `getComputedStyle()` values, interaction models, multi-state content, responsive breakpoints, and asset paths. No guessing.
-
-## Use Cases
-
-- **Platform migration** — rebuild a site you own from WordPress/Webflow/Squarespace into a modern Next.js codebase
-- **Lost source code** — your site is live but the repo is gone, the developer left, or the stack is legacy. Get the code back in a modern format
-- **Learning** — deconstruct how production sites achieve specific layouts, animations, and responsive behavior by working with real code
-
-## Not Intended For
-
-- **Phishing or impersonation** — this project must not be used for deceptive purposes, impersonation, or any activity that breaks the law.
-- **Passing off someone's design as your own** — logos, brand assets, and original copy belong to their owners.
-- **Violating terms of service** — some sites explicitly prohibit scraping or reproduction. Check first.
-
-## Project Structure
-
-```
-src/
-  app/              # Next.js routes
-  components/       # React components
-    ui/             # shadcn/ui primitives
-    icons.tsx       # Extracted SVG icons
-  lib/utils.ts      # cn() utility
-  types/            # TypeScript interfaces
-  hooks/            # Custom React hooks
-public/
-  images/           # Downloaded images from target
-  videos/           # Downloaded videos from target
-  seo/              # Favicons, OG images
-docs/
-  research/         # Extraction output & component specs
-  design-references/ # Screenshots
-scripts/
-  sync-agent-rules.sh  # Regenerate agent instruction files
-  sync-skills.mjs      # Regenerate /clone-website for all platforms
-AGENTS.md           # Agent instructions (single source of truth)
-CLAUDE.md           # Claude Code config (imports AGENTS.md)
-GEMINI.md           # Gemini CLI config (imports AGENTS.md)
-```
-
-## Commands
+## Rodando local
 
 ```bash
-npm run dev    # Start dev server
-npm run build  # Production build
-npm run lint   # ESLint check
-npm run typecheck # TypeScript check
-npm run check  # Run lint + typecheck + build
+npm install
+cp .env.example .env.local   # preencha as chaves
+npm run dev
 ```
 
-### If using docker
+## Variáveis de ambiente
+
+Todas são lidas **apenas no servidor** — nenhuma usa `NEXT_PUBLIC_` exceto a
+URL pública. A OnyxPag autentica com `base64("<pk>:<sk>")`, ou seja, a chave
+secreta entra em toda chamada e não pode ir para o navegador.
+
+| Variável | Obrigatória | Para quê |
+| --- | --- | --- |
+| `ONYXPAG_PUBLIC_KEY` | sim | Autenticação (par Basic) |
+| `ONYXPAG_SECRET_KEY` | sim | Autenticação (par Basic) |
+| `ONYXPAG_API_URL` | não | Padrão `https://api.onyxpag.com` |
+| `NEXT_PUBLIC_SITE_URL` | em produção | `source_url` e `postbackUrl` da cobrança |
+| `ONYXPAG_WEBHOOK_SECRET` | sim | Token que autentica o postback |
+
+> **Deploy:** as chaves ficam só no `.env.local`, que é ignorado pelo git. Ao
+> hospedar, cadastre-as no painel da hospedagem — sem isso o Pix não é gerado.
+> Confira em `/api/checkout/health`, que diz o que está faltando sem expor valor
+> nenhum.
+
+## Comandos
 
 ```bash
-docker compose up app --build # build and run the app
-docker compose up dev --build # run the app in dev mode on port 3001
+npm run dev      # desenvolvimento
+npm run build    # build de produção
+npm run lint     # ESLint
+npm run typecheck
+npm run check    # lint + typecheck + build
 ```
 
-## Updating for Other Platforms
+## Scripts auxiliares
 
-Two source-of-truth files power all platform support. Edit the source, then run the sync script:
+```bash
+node scripts/download-assets.mjs    # rebaixa os assets originais
+node scripts/optimize-images.mjs    # converte imagens para WebP redimensionado
+```
 
-| What                   | Source of truth                         | Sync command                       |
-| ---------------------- | --------------------------------------- | ---------------------------------- |
-| Project instructions   | `AGENTS.md`                             | `bash scripts/sync-agent-rules.sh` |
-| `/clone-website` skill | `.claude/skills/clone-website/SKILL.md` | `node scripts/sync-skills.mjs`     |
+O otimizador reduziu os assets de 10,2 MB para 0,59 MB. Rode-o sempre que
+adicionar imagem nova em `public/images`.
 
-Each script regenerates the platform-specific copies automatically. Agents that read the source files natively need no regeneration.
+## Rotas de API
 
+| Rota | O que faz |
+| --- | --- |
+| `POST /api/checkout/pix` | Cria a cobrança Pix (preço calculado no servidor) |
+| `GET /api/checkout/status/[id]` | Consulta o status da transação |
+| `POST /api/checkout/webhook` | Recebe o postback da OnyxPag |
+| `GET /api/checkout/health` | Diagnóstico de configuração |
 
-## Star History
+### Segurança do checkout
 
-[![Star History Chart](https://api.star-history.com/svg?repos=JCodesMore/ai-website-cloner-template&type=Date)](https://star-history.com/#JCodesMore/ai-website-cloner-template&Date)
+- O preço **nunca** vem do cliente: `lib/pricing.ts` recalcula tudo no servidor.
+- O webhook da OnyxPag não é assinado, então o payload recebido não é fonte da
+  verdade — a rota revalida o status consultando a API, e exige um token secreto
+  na querystring.
 
-## License
+## Eventos de rastreamento
 
-MIT
+Disparados por `lib/tracking.ts`, que envia para a Traffik e espelha no Meta
+Pixel com o mesmo `event_id` (evita contagem dupla).
+
+| Momento | Evento |
+| --- | --- |
+| Clique em "Comprar agora" | `InitiateCheckout` |
+| Identificação preenchida | `Lead` |
+| Pix gerado (aguardando) | `AddPaymentInfo` |
+| Pagamento confirmado | `Purchase` |
+
+## Pendências conhecidas
+
+- **Cupons:** a lista em `src/data/product.ts` está vazia; qualquer código é
+  recusado até você cadastrar os reais.
+- **Cartão de crédito:** o formulário existe e valida, mas a cobrança não é
+  enviada — a integração ativa cobre só Pix. Ao submeter, avisa e oferece o Pix.
+- **Pedidos não são persistidos:** o webhook tem um `TODO` para gravar no banco
+  ou ERP. Precisa ser idempotente (a OnyxPag reenvia eventos).

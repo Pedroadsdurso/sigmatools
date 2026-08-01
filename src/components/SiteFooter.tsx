@@ -11,7 +11,7 @@ export function SiteFooter({ product }: { product: Product }) {
       <div className="mx-auto max-w-6xl px-4 py-8 lg:px-6">
         <div className="mb-6 flex flex-col items-center gap-3">
           <Image
-            src="/images/sgt-logo.png"
+            src="/images/sgt-logo.webp"
             alt="SGT Tools"
             width={124}
             height={147}
@@ -78,9 +78,9 @@ export function SiteFooter({ product }: { product: Product }) {
           <div>
             <h3 className="mb-2 text-xs text-white">SEGURANÇA</h3>
             <div className="flex flex-wrap items-center gap-2">
-              <Image src="/images/trust/ssl.png" alt="SSL Certificado" width={80} height={38} className="h-8 w-auto rounded bg-white p-1" />
-              <Image src="/images/trust/norton.png" alt="Norton by Symantec" width={1600} height={617} className="h-8 w-auto rounded bg-white p-1" />
-              <Image src="/images/trust/google-safe.png" alt="Google Site Seguro" width={110} height={40} className="h-8 w-auto rounded bg-white p-1" />
+              <Image src="/images/trust/ssl.webp" alt="SSL Certificado" width={80} height={38} className="h-8 w-auto rounded bg-white p-1" />
+              <Image src="/images/trust/norton.webp" alt="Norton by Symantec" width={1600} height={617} className="h-8 w-auto rounded bg-white p-1" />
+              <Image src="/images/trust/google-safe.webp" alt="Google Site Seguro" width={110} height={40} className="h-8 w-auto rounded bg-white p-1" />
             </div>
           </div>
         </div>

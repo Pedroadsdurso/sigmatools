@@ -20,6 +20,7 @@ import { formatCep, isCompleteCep, lookupCep } from "@/lib/cep";
 import { formatCpf, formatPhone } from "@/lib/cpf";
 import { formatBRL } from "@/lib/format";
 import { calculateTotals, findCoupon } from "@/lib/pricing";
+import { trackLead, trackPixPending } from "@/lib/tracking";
 import { cn } from "@/lib/utils";
 import type { PaymentMethod, Product } from "@/types/product";
 
@@ -101,7 +102,9 @@ export function CheckoutFlow({ product, initialQty }: { product: Product; initia
         if (data.fields) setStep(1);
         return;
       }
-      setCharge(data as PixCharge);
+      const pix = data as PixCharge;
+      trackPixPending(pix.amountCents, pix.id);
+      setCharge(pix);
     } catch {
       setErrors({ _: "Sem conexão com o servidor. Tente novamente." });
     } finally {
@@ -154,7 +157,17 @@ export function CheckoutFlow({ product, initialQty }: { product: Product; initia
             </p>
           )}
 
-          {step === 1 && <Step1 form={form} set={set} errors={errors} onNext={() => setStep(2)} />}
+          {step === 1 && (
+            <Step1
+              form={form}
+              set={set}
+              errors={errors}
+              onNext={() => {
+                trackLead();
+                setStep(2);
+              }}
+            />
+          )}
 
           {step === 2 && (
             <Step2

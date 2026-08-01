@@ -26,7 +26,7 @@ export default async function CheckoutPage({
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <Link href="/" className="flex shrink-0 items-center">
             <Image
-              src="/images/sgt-logo.png"
+              src="/images/sgt-logo.webp"
               alt="SGT Tools"
               width={124}
               height={147}
@@ -85,7 +85,7 @@ export default async function CheckoutPage({
         <div className="mt-6 flex items-center justify-center gap-6 text-[11px] font-black">
           <span className="flex items-center gap-2">
             <Image
-              src="/images/trust/ssl.png"
+              src="/images/trust/ssl.webp"
               alt=""
               width={80}
               height={38}

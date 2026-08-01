@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Check, Copy, Loader2 } from "lucide-react";
 import { formatBRL } from "@/lib/format";
+import { trackPurchase } from "@/lib/tracking";
 
 export interface PixCharge {
   id: string;
@@ -29,7 +30,12 @@ export function PixPayment({ charge }: { charge: PixCharge }) {
         const res = await fetch(`/api/checkout/status/${charge.id}`, { cache: "no-store" });
         if (!res.ok) return;
         const data: { paid?: boolean } = await res.json();
-        if (!cancelled && data.paid) setPaid(true);
+        if (!cancelled && data.paid) {
+          // Purchase dispara uma vez só: o efeito sai do ar assim que paid
+          // vira true, então o polling não repete a venda.
+          trackPurchase(charge.amountCents, charge.id);
+          setPaid(true);
+        }
       } catch {
         // Falha de rede no polling e transitoria — a proxima tentativa resolve.
       }

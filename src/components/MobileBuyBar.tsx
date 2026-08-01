@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { formatBRL, pixPriceCents } from "@/lib/format";
+import { trackInitiateCheckout } from "@/lib/tracking";
 import type { Product } from "@/types/product";
 
 /** Barra fixa de compra — visivel apenas abaixo de lg, como no original. */
@@ -20,6 +23,7 @@ export function MobileBuyBar({ product }: { product: Product }) {
         </div>
         <Link
           href={{ pathname: "/checkout", query: { product: product.id } }}
+          onClick={() => trackInitiateCheckout(pix, 1)}
           className="ml-auto flex h-12 flex-1 items-center justify-center rounded-md bg-success text-sm font-black text-success-foreground"
         >
           COMPRAR AGORA
