@@ -35,7 +35,7 @@ export const product: Product = {
   listPriceCents: precoAtivo.listCents,
   priceCents: precoAtivo.priceCents,
   pixDiscount: 0.05,
-  installments: 10,
+  installments: 12,
   stock: 7,
   viewers: 20,
 
@@ -188,7 +188,7 @@ export const product: Product = {
     {
       question: "O pagamento é seguro?",
       answer:
-        "100%. Checkout com criptografia SSL, aceitamos Pix, cartão em até 10x sem juros e boleto.",
+        "100%. Checkout com criptografia SSL, aceitamos Pix, cartão em até 3x sem juros (ou até 12x com juros) e boleto.",
     },
     {
       question: "O que vem na caixa?",

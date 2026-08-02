@@ -21,7 +21,14 @@ import { orderBumps, product, shippingOptions } from "@/data/product";
 import { formatCep, isCompleteCep, lookupCep } from "@/lib/cep";
 import { formatCpf, formatPhone } from "@/lib/cpf";
 import { formatBRL } from "@/lib/format";
-import { calculateTotals, findCoupon } from "@/lib/pricing";
+import {
+  calculateTotals,
+  findCoupon,
+  INTEREST_FREE_INSTALLMENTS,
+  installmentAmountCents,
+  installmentTotalCents,
+  MAX_INSTALLMENTS,
+} from "@/lib/pricing";
 import { tokenizeCard, type CardInput } from "@/lib/primecash-client";
 import {
   attributionForSale,
@@ -765,6 +772,7 @@ function Step3({
 
         {method === "card" && (
           <CardForm
+            baseTotalCents={totalCents}
             submitting={cardSubmitting}
             error={cardError}
             onSubmit={onCardSubmit}
@@ -797,11 +805,14 @@ const formatExpiry = (v: string) =>
  * guardados: ficam apenas no estado local ate a tokenizacao.
  */
 function CardForm({
+  baseTotalCents,
   submitting,
   error,
   onSubmit,
   onSwitchToPix,
 }: {
+  /** Total a vista no cartao (sem juros), base para o calculo das parcelas. */
+  baseTotalCents: number;
   submitting: boolean;
   error: string | null;
   onSubmit: (card: CardInput, installments: number) => void;
@@ -903,12 +914,21 @@ function CardForm({
           onChange={(e) => setInstallments(Number(e.target.value))}
           className="h-11 w-full rounded-md border border-border bg-card px-3 text-sm outline-none focus:border-brand"
         >
-          {Array.from({ length: product.installments }, (_, i) => i + 1).map((n) => (
-            <option key={n} value={n}>
-              {n}x de {formatBRL(Math.round(product.priceCents / n))} sem juros
-            </option>
-          ))}
+          {Array.from({ length: MAX_INSTALLMENTS }, (_, i) => i + 1).map((n) => {
+            const parcela = installmentAmountCents(baseTotalCents, n);
+            const juros = n <= INTEREST_FREE_INSTALLMENTS ? "sem juros" : "com juros";
+            return (
+              <option key={n} value={n}>
+                {n}x de {formatBRL(parcela)} {juros}
+              </option>
+            );
+          })}
         </select>
+        {installments > INTEREST_FREE_INSTALLMENTS && (
+          <p className="mt-1 text-xs font-semibold text-muted-foreground">
+            Total parcelado: {formatBRL(installmentTotalCents(baseTotalCents, installments))}
+          </p>
+        )}
       </div>
 
       {error && (

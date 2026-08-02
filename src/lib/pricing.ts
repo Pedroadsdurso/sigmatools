@@ -90,5 +90,55 @@ export function clampQty(qty: unknown): number {
   return Math.min(n, product.stock);
 }
 
+/* ------------------------------------------------------------------ */
+/* Parcelamento no cartao                                             */
+/* ------------------------------------------------------------------ */
+
+/** Numero maximo de parcelas oferecidas no cartao. */
+export const MAX_INSTALLMENTS = 12;
+
+/** Ate esta quantidade de parcelas nao ha juros. */
+export const INTEREST_FREE_INSTALLMENTS = 3;
+
+/**
+ * Juros TOTAL (fracao sobre o valor a vista) por numero de parcelas.
+ * Ate 3x sem juros; de 4x a 12x conforme a tabela combinada com o gateway.
+ * Ex.: 0.03 = +3% sobre o total. Fonte unica: usada tanto para EXIBIR quanto
+ * para COBRAR — se divergissem, o cliente veria um valor e pagaria outro.
+ */
+export const INSTALLMENT_INTEREST: Record<number, number> = {
+  1: 0,
+  2: 0,
+  3: 0,
+  4: 0.03,
+  5: 0.04,
+  6: 0.05,
+  7: 0.06,
+  8: 0.07,
+  9: 0.08,
+  10: 0.09,
+  11: 0.1,
+  12: 0.12,
+};
+
+/** Normaliza o numero de parcelas para o intervalo valido (1..MAX). */
+export function clampInstallments(n: unknown): number {
+  const v = Math.trunc(Number(n) || 1);
+  return Math.min(Math.max(1, v), MAX_INSTALLMENTS);
+}
+
+/** Total a cobrar no cartao para N parcelas, ja com o juros aplicado. */
+export function installmentTotalCents(baseTotalCents: number, installments: number): number {
+  const n = clampInstallments(installments);
+  const interest = INSTALLMENT_INTEREST[n] ?? 0;
+  return Math.round(baseTotalCents * (1 + interest));
+}
+
+/** Valor de cada parcela (total com juros / N), arredondado. */
+export function installmentAmountCents(baseTotalCents: number, installments: number): number {
+  const n = clampInstallments(installments);
+  return Math.round(installmentTotalCents(baseTotalCents, n) / n);
+}
+
 export const isPaymentMethod = (v: unknown): v is PaymentMethod =>
   v === "pix" || v === "card";

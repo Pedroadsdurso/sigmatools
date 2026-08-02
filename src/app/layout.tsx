@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   title:
     "Canhão de Espuma à Gravidade SIGMA 10930 — Canhão de Espuma · SGT Tools",
   description:
-    "Canhão de Espuma Canhão de Espuma à Gravidade SIGMA 10930: ultraleve 350g, filtro interno, ajuste de concentração, conexão 1/4″. Frete grátis e 10x sem juros.",
+    "Canhão de Espuma Canhão de Espuma à Gravidade SIGMA 10930: ultraleve 350g, filtro interno, ajuste de concentração, conexão 1/4″. Frete grátis e 3x sem juros.",
   icons: {
     icon: "/seo/favicon.ico",
     apple: "/seo/icon-192.svg",
