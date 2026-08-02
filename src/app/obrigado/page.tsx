@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Clock, Mail, Package, ShieldCheck, Truck } from "lucide-react";
 import { PurchaseTracker } from "@/components/checkout/PurchaseTracker";
 import { getTransaction } from "@/lib/onyxpag";
+import { getCardTransaction } from "@/lib/primecash";
 import { formatBRL } from "@/lib/format";
 import { store } from "@/data/product";
 
@@ -17,16 +18,29 @@ export const dynamic = "force-dynamic";
 export default async function ObrigadoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tx?: string }>;
+  searchParams: Promise<{ tx?: string; m?: string }>;
 }) {
-  const { tx } = await searchParams;
+  const { tx, m } = await searchParams;
+  const isCard = m === "card";
 
   // O status vem da API, nunca da URL: sem isso bastaria abrir /obrigado?tx=x
   // para ver uma confirmacao de pagamento que nunca aconteceu.
+  // Cartao -> PrimeCash; Pix -> OnyxPag (dois gateways independentes).
   let paid = false;
   let amountCents: number | null = null;
 
-  if (tx && /^[\w-]{6,64}$/.test(tx)) {
+  if (isCard) {
+    // Ids da PrimeCash sao numericos e curtos (ex.: "282").
+    if (tx && /^[\w-]{1,64}$/.test(tx)) {
+      try {
+        const t = await getCardTransaction(tx);
+        paid = t.status === "paid";
+        amountCents = t.amount; // PrimeCash ja retorna em centavos.
+      } catch {
+        // Falha de consulta cai na tela neutra abaixo.
+      }
+    }
+  } else if (tx && /^[\w-]{6,64}$/.test(tx)) {
     try {
       const t = await getTransaction(tx);
       paid = t.status === "pago";
@@ -63,7 +77,11 @@ export default async function ObrigadoPage({
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
         {paid && tx && amountCents !== null && (
-          <PurchaseTracker transactionId={tx} amountCents={amountCents} />
+          <PurchaseTracker
+            transactionId={tx}
+            amountCents={amountCents}
+            method={isCard ? "cartao" : "pix"}
+          />
         )}
 
         <div className="rounded-lg bg-card p-6 text-center shadow-card sm:p-8">
@@ -85,7 +103,7 @@ export default async function ObrigadoPage({
             <>
               <h1 className="text-xl sm:text-2xl">Pagamento confirmado!</h1>
               <p className="mx-auto mt-2 max-w-md text-sm font-semibold text-muted-foreground">
-                Recebemos seu Pix
+                {isCard ? "Recebemos seu pagamento no cartão" : "Recebemos seu Pix"}
                 {amountCents !== null && (
                   <>
                     {" "}
@@ -98,10 +116,12 @@ export default async function ObrigadoPage({
             </>
           ) : (
             <>
-              <h1 className="text-xl sm:text-2xl">Estamos aguardando seu Pix</h1>
+              <h1 className="text-xl sm:text-2xl">
+                {isCard ? "Estamos processando seu pagamento" : "Estamos aguardando seu Pix"}
+              </h1>
               <p className="mx-auto mt-2 max-w-md text-sm font-semibold text-muted-foreground">
-                Assim que o pagamento for compensado, você recebe a confirmação
-                por e-mail. Isso costuma levar menos de um minuto.
+                Assim que o pagamento for {isCard ? "autorizado" : "compensado"}, você recebe a
+                confirmação por e-mail. Isso costuma levar menos de um minuto.
               </p>
             </>
           )}

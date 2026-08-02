@@ -64,7 +64,8 @@ export async function POST(request: Request) {
 }
 
 /** Monta o pedido da Magnus a partir dos dados que vieram no postback. */
-function buildMagnusOrder(data: PrimeData): Parameters<typeof sendOrderOnce>[1] | null {
+function buildMagnusOrder(data: PrimeData | undefined): Parameters<typeof sendOrderOnce>[1] | null {
+  if (!data) return null;
   const c = data.customer;
   if (!c?.name || !c?.email) return null;
 
