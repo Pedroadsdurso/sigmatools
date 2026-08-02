@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { credentialsStatus } from "@/lib/onyxpag";
+import { credentialsStatus as cardCredentialsStatus } from "@/lib/primecash";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,6 +14,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(request: Request) {
   const creds = credentialsStatus();
+  const cardCreds = cardCredentialsStatus();
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim() ?? null;
   const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
   const proto = request.headers.get("x-forwarded-proto") ?? "https";
@@ -40,15 +42,33 @@ export async function GET(request: Request) {
       "ONYXPAG_WEBHOOK_SECRET ausente: a rota de webhook vai recusar todo postback.",
     );
   }
+  if (!cardCreds.ok) {
+    problemas.push(
+      `Faltam as variaveis ${cardCreds.missing.join(" e ")} no ambiente. O pagamento no cartao (PrimeCash) nao sera processado ate elas existirem.`,
+    );
+  }
+  if (!process.env.PRIMECASH_WEBHOOK_SECRET) {
+    problemas.push(
+      "PRIMECASH_WEBHOOK_SECRET ausente: o postback do cartao e aceito so com base na releitura do status (recomendado configurar).",
+    );
+  }
 
   return NextResponse.json(
     {
       ok: problemas.length === 0,
-      credenciais: creds.ok ? "configuradas" : "AUSENTES",
-      faltando: creds.missing,
-      apiUrl: process.env.ONYXPAG_API_URL ?? "https://api.onyxpag.com",
+      pix: {
+        credenciais: creds.ok ? "configuradas" : "AUSENTES",
+        faltando: creds.missing,
+        apiUrl: process.env.ONYXPAG_API_URL ?? "https://api.onyxpag.com",
+        webhookSecret: process.env.ONYXPAG_WEBHOOK_SECRET ? "configurado" : "AUSENTE",
+      },
+      cartao: {
+        credenciais: cardCreds.ok ? "configuradas" : "AUSENTES",
+        faltando: cardCreds.missing,
+        apiUrl: process.env.PRIMECASH_API_URL ?? "https://api.primecashbrasil.com/v1",
+        webhookSecret: process.env.PRIMECASH_WEBHOOK_SECRET ? "configurado" : "AUSENTE",
+      },
       origemEfetiva,
-      webhookSecret: process.env.ONYXPAG_WEBHOOK_SECRET ? "configurado" : "AUSENTE",
       problemas,
     },
     { status: problemas.length === 0 ? 200 : 503 },

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   BadgeCheck,
@@ -15,12 +16,14 @@ import {
 } from "lucide-react";
 import { OrderBumpCard } from "@/components/checkout/OrderBumpCard";
 import { PixPayment, type PixCharge } from "@/components/checkout/PixPayment";
+import { CardProcessing, type CardTx } from "@/components/checkout/CardProcessing";
 import { orderBumps, product, shippingOptions } from "@/data/product";
 import { formatCep, isCompleteCep, lookupCep } from "@/lib/cep";
 import { formatCpf, formatPhone } from "@/lib/cpf";
 import { formatBRL } from "@/lib/format";
 import { calculateTotals, findCoupon } from "@/lib/pricing";
-import { trackLead, trackPixPending } from "@/lib/tracking";
+import { tokenizeCard, type CardInput } from "@/lib/primecash-client";
+import { trackCardPending, trackLead, trackPixPending } from "@/lib/tracking";
 import { cn } from "@/lib/utils";
 import type { PaymentMethod, Product } from "@/types/product";
 
@@ -44,6 +47,7 @@ const EMPTY: FormState = {
 };
 
 export function CheckoutFlow({ product, initialQty }: { product: Product; initialQty: number }) {
+  const router = useRouter();
   const [step, setStep] = useState<Step>(1);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [qty, setQty] = useState(initialQty);
@@ -53,6 +57,9 @@ export function CheckoutFlow({ product, initialQty }: { product: Product; initia
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [charge, setCharge] = useState<PixCharge | null>(null);
+  const [cardTx, setCardTx] = useState<CardTx | null>(null);
+  const [cardSubmitting, setCardSubmitting] = useState(false);
+  const [cardError, setCardError] = useState<string | null>(null);
   const [couponInput, setCouponInput] = useState("");
   const [couponCode, setCouponCode] = useState<string | undefined>();
   const [couponError, setCouponError] = useState<string | null>(null);
@@ -76,7 +83,72 @@ export function CheckoutFlow({ product, initialQty }: { product: Product; initia
     setCouponError(null);
   }
 
-  const locked = !!charge;
+  const locked = !!charge || !!cardTx || cardSubmitting;
+
+  // Pagamento no cartao via PrimeCash (gateway separado do Pix/OnyxPag).
+  // O cartao e tokenizado NO NAVEGADOR (hash) antes de qualquer dado sair
+  // daqui — o servidor so recebe o hash, nunca o numero/CVV.
+  async function finalizeCard(card: CardInput, installments: number) {
+    setCardSubmitting(true);
+    setCardError(null);
+    setErrors({});
+    try {
+      const cardHash = await tokenizeCard(card);
+
+      const res = await fetch("/api/checkout/card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name, email: form.email, phone: form.phone, cpf: form.cpf,
+          cardHash, installments,
+          qty, shippingId, bumpIds, couponCode,
+          address: {
+            cep: form.cep, street: form.street, number: form.number,
+            complement: form.complement, district: form.district,
+            city: form.city, state: form.state,
+          },
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        // Dados de identificacao invalidos voltam para o passo 1.
+        if (data.fields) {
+          setErrors(data.fields);
+          setStep(1);
+        } else {
+          setCardError(data.error ?? "Pagamento nao aprovado. Tente novamente.");
+        }
+        return;
+      }
+
+      if (data.status === "paid") {
+        // Aprovacao imediata: o Purchase e disparado na /obrigado apos o
+        // servidor reconfirmar o pagamento na PrimeCash.
+        router.replace(`/obrigado?tx=${encodeURIComponent(data.id)}&m=card`);
+        return;
+      }
+
+      const pending = ["processing", "authorized", "waiting_payment"].includes(data.status);
+      if (pending) {
+        trackCardPending(data.amountCents, data.id);
+        setCardTx({ id: data.id, amountCents: data.amountCents });
+        return;
+      }
+
+      // Recusado/cancelado.
+      setCardError(
+        data.refusedReason ??
+          "Pagamento nao aprovado pela operadora. Confira os dados ou tente outro cartao.",
+      );
+    } catch (err) {
+      setCardError(
+        err instanceof Error ? err.message : "Falha ao processar o cartao. Tente novamente.",
+      );
+    } finally {
+      setCardSubmitting(false);
+    }
+  }
 
   async function finalize() {
     setSubmitting(true);
@@ -184,6 +256,14 @@ export function CheckoutFlow({ product, initialQty }: { product: Product; initia
           {step === 3 &&
             (charge ? (
               <PixPayment charge={charge} />
+            ) : cardTx ? (
+              <CardProcessing
+                tx={cardTx}
+                onRetry={() => {
+                  setCardTx(null);
+                  setCardError(null);
+                }}
+              />
             ) : (
               <Step3
                 method={method}
@@ -195,6 +275,9 @@ export function CheckoutFlow({ product, initialQty }: { product: Product; initia
                 totalCents={totals.totalCents}
                 submitting={submitting}
                 onFinalize={() => void finalize()}
+                cardSubmitting={cardSubmitting}
+                cardError={cardError}
+                onCardSubmit={(card, installments) => void finalizeCard(card, installments)}
                 onBack={() => setStep(2)}
               />
             ))}
@@ -549,7 +632,8 @@ function Step2({
 }
 
 function Step3({
-  method, onMethod, bumpIds, onToggleBump, totalCents, submitting, onFinalize, onBack,
+  method, onMethod, bumpIds, onToggleBump, totalCents, submitting, onFinalize,
+  cardSubmitting, cardError, onCardSubmit, onBack,
 }: {
   method: PaymentMethod;
   onMethod: (m: PaymentMethod) => void;
@@ -558,6 +642,9 @@ function Step3({
   totalCents: number;
   submitting: boolean;
   onFinalize: () => void;
+  cardSubmitting: boolean;
+  cardError: string | null;
+  onCardSubmit: (card: CardInput, installments: number) => void;
   onBack: () => void;
 }) {
   return (
@@ -666,7 +753,14 @@ function Step3({
           </span>
         </button>
 
-        {method === "card" && <CardForm onSwitchToPix={() => onMethod("pix")} />}
+        {method === "card" && (
+          <CardForm
+            submitting={cardSubmitting}
+            error={cardError}
+            onSubmit={onCardSubmit}
+            onSwitchToPix={() => onMethod("pix")}
+          />
+        )}
       </div>
 
       <button type="button" onClick={onBack} className="text-sm font-bold text-muted-foreground hover:text-foreground">
@@ -685,17 +779,26 @@ const formatExpiry = (v: string) =>
   v.replace(/\D/g, "").slice(0, 4).replace(/(\d{2})(?=\d)/, "$1/");
 
 /**
- * Formulario de cartao.
+ * Formulario de cartao — cobranca real via PrimeCash.
  *
- * Os campos existem e sao validados, mas a cobranca nao e enviada a lugar
- * nenhum: a integracao ativa cobre apenas Pix. Ao submeter, avisa o cliente e
- * oferece a troca para Pix. Nada e transmitido nem guardado — os dados do
- * cartao ficam so no estado local do componente e somem ao sair da tela.
+ * Ao submeter, os dados do cartao sao tokenizados NO NAVEGADOR (a lib da
+ * PrimeCash gera um hash) e so o hash e enviado ao nosso servidor, que cria a
+ * transacao. O numero do cartao e o CVV nunca passam pelo backend nem sao
+ * guardados: ficam apenas no estado local ate a tokenizacao.
  */
-function CardForm({ onSwitchToPix }: { onSwitchToPix: () => void }) {
+function CardForm({
+  submitting,
+  error,
+  onSubmit,
+  onSwitchToPix,
+}: {
+  submitting: boolean;
+  error: string | null;
+  onSubmit: (card: CardInput, installments: number) => void;
+  onSwitchToPix: () => void;
+}) {
   const [card, setCard] = useState({ number: "", holder: "", expiry: "", cvv: "" });
   const [installments, setInstallments] = useState(1);
-  const [down, setDown] = useState(false);
 
   const complete =
     card.number.replace(/\s/g, "").length >= 13 &&
@@ -707,7 +810,16 @@ function CardForm({ onSwitchToPix }: { onSwitchToPix: () => void }) {
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        setDown(true);
+        if (!complete || submitting) return;
+        onSubmit(
+          {
+            number: card.number,
+            holderName: card.holder,
+            expiry: card.expiry,
+            cvv: card.cvv,
+          },
+          installments,
+        );
       }}
       className="space-y-3 px-4 pb-4"
     >
@@ -789,15 +901,15 @@ function CardForm({ onSwitchToPix }: { onSwitchToPix: () => void }) {
         </select>
       </div>
 
-      {down && (
+      {error && (
         <div className="rounded-md border border-danger/30 bg-danger/5 px-3 py-3">
           <p className="flex items-start gap-2 text-sm font-bold text-danger">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-            Pagamento com cartão temporariamente fora do ar
+            {error}
           </p>
           <p className="mt-1.5 text-xs font-semibold text-muted-foreground">
-            Estamos com instabilidade na operadora de cartão. Finalize pelo Pix —
-            é aprovado na hora e ainda garante {Math.round(product.pixDiscount * 100)}% de desconto.
+            Prefere garantir agora? Pague pelo Pix — é aprovado na hora e ainda
+            garante {Math.round(product.pixDiscount * 100)}% de desconto.
           </p>
           <button
             type="button"
@@ -811,11 +923,20 @@ function CardForm({ onSwitchToPix }: { onSwitchToPix: () => void }) {
 
       <button
         type="submit"
-        disabled={!complete}
+        disabled={!complete || submitting}
         className="flex h-12 w-full items-center justify-center gap-2 rounded-md bg-success text-sm font-black text-success-foreground transition-opacity disabled:opacity-50"
       >
-        <Lock className="size-4" aria-hidden />
-        FINALIZAR COMPRA
+        {submitting ? (
+          <>
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+            PROCESSANDO...
+          </>
+        ) : (
+          <>
+            <Lock className="size-4" aria-hidden />
+            FINALIZAR COMPRA
+          </>
+        )}
       </button>
     </form>
   );

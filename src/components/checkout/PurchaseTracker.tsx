@@ -14,9 +14,11 @@ import { trackPurchase } from "@/lib/tracking";
 export function PurchaseTracker({
   transactionId,
   amountCents,
+  method = "pix",
 }: {
   transactionId: string;
   amountCents: number;
+  method?: "pix" | "cartao";
 }) {
   useEffect(() => {
     const key = `purchase:${transactionId}`;
@@ -27,8 +29,8 @@ export function PurchaseTracker({
       // Sem sessionStorage (aba anonima restrita) seguimos e disparamos:
       // perder a venda no relatorio e pior que o risco de uma duplicata.
     }
-    trackPurchase(amountCents, transactionId);
-  }, [transactionId, amountCents]);
+    trackPurchase(amountCents, transactionId, method);
+  }, [transactionId, amountCents, method]);
 
   return null;
 }

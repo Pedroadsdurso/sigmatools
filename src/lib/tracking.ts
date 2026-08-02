@@ -112,12 +112,27 @@ export function trackPixPending(totalCents: number, transactionId: string) {
   });
 }
 
+/** Dados do cartao enviados para cobranca (via PrimeCash). */
+export function trackCardPending(totalCents: number, transactionId: string) {
+  send("AddPaymentInfo", {
+    value: reais(totalCents),
+    currency: "BRL",
+    metodo: "cartao",
+    status: "processando",
+    transacao: transactionId,
+  });
+}
+
 /** Pagamento confirmado — a venda. */
-export function trackPurchase(totalCents: number, transactionId: string) {
+export function trackPurchase(
+  totalCents: number,
+  transactionId: string,
+  metodo: "pix" | "cartao" = "pix",
+) {
   send("Purchase", {
     value: reais(totalCents),
     currency: "BRL",
-    metodo: "pix",
+    metodo,
     transacao: transactionId,
   });
 }
