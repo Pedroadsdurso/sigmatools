@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   BadgeCheck,
@@ -15,12 +16,14 @@ import {
 } from "lucide-react";
 import { OrderBumpCard } from "@/components/checkout/OrderBumpCard";
 import { PixPayment, type PixCharge } from "@/components/checkout/PixPayment";
+import { CardProcessing, type CardTx } from "@/components/checkout/CardProcessing";
 import { orderBumps, product, shippingOptions } from "@/data/product";
 import { formatCep, isCompleteCep, lookupCep } from "@/lib/cep";
 import { formatCpf, formatPhone } from "@/lib/cpf";
 import { formatBRL } from "@/lib/format";
 import { calculateTotals, findCoupon } from "@/lib/pricing";
-import { trackLead, trackPixPending } from "@/lib/tracking";
+import { tokenizeCard } from "@/lib/primecash-client";
+import { trackCardPending, trackLead, trackPixPending, trackPurchase } from "@/lib/tracking";
 import { cn } from "@/lib/utils";
 import type { PaymentMethod, Product } from "@/types/product";
 
