@@ -10,6 +10,8 @@ import { isValidCpf, onlyDigits } from "@/lib/cpf";
 import { orderBumps, product, shippingOptions } from "@/data/product";
 import { calculateTotals, clampQty, findCoupon } from "@/lib/pricing";
 
+import { encodeAttribution, type IngestAttribution } from "@/lib/traffik-ingest";
+
 export const runtime = "nodejs";
 /** Cobranca nunca pode ser pre-renderizada nem cacheada. */
 export const dynamic = "force-dynamic";
@@ -37,6 +39,32 @@ function publicOrigin(request: Request): string {
   return new URL(request.url).origin;
 }
 
+function clientIp(request: Request): string | undefined {
+  const fwd = request.headers.get("x-forwarded-for");
+  return fwd ? fwd.split(",")[0]!.trim() : undefined;
+}
+
+function clientCountry(request: Request): string | undefined {
+  const vercel = request.headers.get("x-vercel-ip-country");
+  if (vercel) return vercel.toUpperCase();
+  const nf = request.headers.get("x-nf-geo");
+  if (nf) {
+    try {
+      const geo = JSON.parse(nf) as { country?: { code?: string } };
+      if (geo.country?.code) return geo.country.code.toUpperCase();
+    } catch {
+      // header ausente/malformado: pais fica indefinido, sem quebrar a venda.
+    }
+  }
+  return request.headers.get("cf-ipcountry")?.toUpperCase() || undefined;
+}
+
+function clean(v: unknown, max = 256): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const s = v.trim().slice(0, max);
+  return s || undefined;
+}
+
 interface Body {
   name?: string;
   email?: string;
@@ -46,6 +74,16 @@ interface Body {
   shippingId?: string;
   bumpIds?: string[];
   couponCode?: string;
+  attribution?: {
+    clickId?: string;
+    fbc?: string;
+    fbp?: string;
+    utmSource?: string;
+    utmMedium?: string;
+    utmCampaign?: string;
+    utmContent?: string;
+    utmTerm?: string;
+  };
   address?: Record<string, string>;
 }
 
@@ -117,21 +155,60 @@ export async function POST(request: Request) {
 
   const siteUrl = publicOrigin(request);
 
+  const attr: IngestAttribution = {
+    clickId: clean(body.attribution?.clickId, 128),
+    fbc: clean(body.attribution?.fbc),
+    fbp: clean(body.attribution?.fbp),
+    utmSource: clean(body.attribution?.utmSource),
+    utmMedium: clean(body.attribution?.utmMedium),
+    utmCampaign: clean(body.attribution?.utmCampaign),
+    utmContent: clean(body.attribution?.utmContent),
+    utmTerm: clean(body.attribution?.utmTerm),
+    phone,
+    document: cpf,
+    ip: clientIp(request),
+    country: clientCountry(request),
+  };
+  const attrMeta = encodeAttribution(attr);
+
+  // Monta source_url com parametros de UTM se existirem
+  const utmParams = new URLSearchParams();
+  if (attr.utmSource) utmParams.set("utm_source", attr.utmSource);
+  if (attr.utmMedium) utmParams.set("utm_medium", attr.utmMedium);
+  if (attr.utmCampaign) utmParams.set("utm_campaign", attr.utmCampaign);
+  if (attr.utmContent) utmParams.set("utm_content", attr.utmContent);
+  if (attr.utmTerm) utmParams.set("utm_term", attr.utmTerm);
+  if (attr.clickId) utmParams.set("click_id", attr.clickId);
+  const sourceUrl = utmParams.toString()
+    ? `${siteUrl}/checkout?${utmParams.toString()}`
+    : `${siteUrl}/checkout`;
+
+  const metadata: Record<string, string> = {
+    product_id: product.id,
+    sku: product.sku,
+    shipping: shippingId,
+    bumps: bumpIds.join(",") || "none",
+    cep: onlyDigits(body.address?.cep ?? ""),
+  };
+  if (attr.clickId) metadata.click_id = attr.clickId;
+  if (attr.utmSource) metadata.utm_source = attr.utmSource;
+  if (attr.utmMedium) metadata.utm_medium = attr.utmMedium;
+  if (attr.utmCampaign) metadata.utm_campaign = attr.utmCampaign;
+  if (attr.utmContent) metadata.utm_content = attr.utmContent;
+  if (attr.utmTerm) metadata.utm_term = attr.utmTerm;
+  if (attr.fbc) metadata.fbc = attr.fbc;
+  if (attr.fbp) metadata.fbp = attr.fbp;
+  if (attrMeta) metadata._attr = attrMeta;
+
   try {
     const charge = await createPixCharge({
       amountCents: totals.totalCents,
       description: `${product.name} (${qty}x)`,
       customer: { name, email, document: cpf, phone },
       items,
-      sourceUrl: `${siteUrl}/checkout`,
+      sourceUrl,
       postbackUrl: `${siteUrl}/api/checkout/webhook?token=${process.env.ONYXPAG_WEBHOOK_SECRET ?? ""}`,
-      metadata: {
-        product_id: product.id,
-        sku: product.sku,
-        shipping: shippingId,
-        bumps: bumpIds.join(",") || "none",
-        cep: onlyDigits(body.address?.cep ?? ""),
-      },
+      metadata,
     });
 
     // Na pratica a OnyxPag responde com pix_qr_code vazio, so o copia-e-cola.

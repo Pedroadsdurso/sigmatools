@@ -177,6 +177,7 @@ export function CheckoutFlow({ product, initialQty }: { product: Product; initia
         body: JSON.stringify({
           name: form.name, email: form.email, phone: form.phone, cpf: form.cpf,
           qty, shippingId, bumpIds, couponCode,
+          attribution: attributionForSale(),
           address: {
             cep: form.cep, street: form.street, number: form.number,
             complement: form.complement, district: form.district,

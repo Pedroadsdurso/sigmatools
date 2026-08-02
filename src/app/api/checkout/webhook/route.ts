@@ -1,8 +1,42 @@
 import { NextResponse } from "next/server";
 import { getTransaction } from "@/lib/onyxpag";
+import { decodeAttribution, sendSaleOnce, type IngestAttribution } from "@/lib/traffik-ingest";
+import { product } from "@/data/product";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function extractAttribution(meta?: Record<string, string> | string): IngestAttribution {
+  if (!meta) return {};
+  if (typeof meta === "string") return decodeAttribution(meta);
+  if (meta._attr) return decodeAttribution(meta._attr);
+  return {
+    clickId: meta.click_id,
+    utmSource: meta.utm_source,
+    utmMedium: meta.utm_medium,
+    utmCampaign: meta.utm_campaign,
+    utmContent: meta.utm_content,
+    utmTerm: meta.utm_term,
+    fbc: meta.fbc,
+    fbp: meta.fbp,
+    phone: meta.phone,
+    document: meta.document,
+    ip: meta.ip,
+    country: meta.country,
+  };
+}
+
+interface OnyxPayload {
+  event?: string;
+  data?: {
+    transaction_id?: string;
+    id?: string;
+    customer?: {
+      name?: string;
+      email?: string;
+    };
+  };
+}
 
 /**
  * Recebe o postback da OnyxPag.
@@ -22,14 +56,14 @@ export async function POST(request: Request) {
     return new NextResponse(null, { status: 404 });
   }
 
-  let payload: { event?: string; data?: { transaction_id?: string } };
+  let payload: OnyxPayload;
   try {
     payload = await request.json();
   } catch {
     return NextResponse.json({ error: "JSON invalido." }, { status: 400 });
   }
 
-  const transactionId = payload.data?.transaction_id;
+  const transactionId = payload.data?.transaction_id ?? payload.data?.id;
   if (!transactionId) {
     return NextResponse.json({ error: "transaction_id ausente." }, { status: 400 });
   }
@@ -38,9 +72,27 @@ export async function POST(request: Request) {
   const tx = await getTransaction(transactionId);
 
   if (tx.status === "pago") {
-    // TODO: registrar o pedido como pago (banco, e-mail de confirmacao, ERP).
-    // Precisa ser idempotente: a OnyxPag pode reenviar o mesmo evento.
     console.log("[onyxpag] pagamento confirmado", { id: tx.id, amount: tx.amount });
+
+    const name = tx.customer?.name ?? payload.data?.customer?.name;
+    const email = tx.customer?.email ?? payload.data?.customer?.email;
+
+    if (name && email) {
+      const attr = extractAttribution(tx.metadata);
+      await sendSaleOnce({
+        transactionId: tx.id,
+        status: "approved",
+        value: Number(tx.amount.toFixed(2)),
+        currency: "BRL",
+        product: product.name,
+        paymentMethod: "pix",
+        email,
+        name,
+        ...attr,
+      });
+    } else {
+      console.warn("[onyxpag] postback Pix pago sem e-mail/nome do cliente", { id: tx.id });
+    }
   }
 
   // Sempre 200 para a OnyxPag parar de reenviar.

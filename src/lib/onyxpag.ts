@@ -136,6 +136,13 @@ interface OnyxTransaction {
   pix_code?: string;
   pix_qr_code?: string;
   expires_at?: string;
+  customer?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    document?: string;
+  };
+  metadata?: Record<string, string> | string;
 }
 
 /** Cria uma cobranca Pix e devolve o codigo copia-e-cola + QR. */
@@ -178,10 +185,22 @@ export async function createPixCharge(input: CreatePixInput): Promise<PixCharge>
  * OnyxPag nao assina o postback, o payload recebido nunca e tratado como
  * fonte da verdade; o status vem sempre desta chamada.
  */
-export async function getTransaction(id: string): Promise<{ id: string; status: OnyxStatus; amount: number }> {
+export async function getTransaction(id: string): Promise<{
+  id: string;
+  status: OnyxStatus;
+  amount: number;
+  customer?: { name?: string; email?: string; phone?: string; document?: string };
+  metadata?: Record<string, string> | string;
+}> {
   const res = await request<OnyxEnvelope<OnyxTransaction>>(
     `/transactions/${encodeURIComponent(id)}`,
     { method: "GET" },
   );
-  return { id: res.data.id, status: res.data.status, amount: res.data.amount };
+  return {
+    id: res.data.id,
+    status: res.data.status,
+    amount: res.data.amount,
+    customer: res.data.customer,
+    metadata: res.data.metadata,
+  };
 }
