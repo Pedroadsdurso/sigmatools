@@ -35,6 +35,18 @@ export function attribution(): Record<string, unknown> {
 }
 
 /**
+ * click_id da Traffik para atribuir a venda no cartao.
+ *
+ * O Pix (OnyxPag) e atribuido nativamente pela ferramenta; no cartao a gente
+ * precisa mandar esse id junto da venda. A Traffik o guarda no cookie
+ * `traffik_track` depois do /api/track/click, e expoe via getData().
+ */
+export function clickId(): string | undefined {
+  const id = attribution().click_id;
+  return typeof id === "string" && id ? id : undefined;
+}
+
+/**
  * Guarda contra disparo duplicado.
  *
  * Em producao cada evento estava saindo DUAS vezes: o `beforeInteractive` do

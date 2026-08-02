@@ -23,7 +23,7 @@ import { formatCpf, formatPhone } from "@/lib/cpf";
 import { formatBRL } from "@/lib/format";
 import { calculateTotals, findCoupon } from "@/lib/pricing";
 import { tokenizeCard, type CardInput } from "@/lib/primecash-client";
-import { trackCardPending, trackLead, trackPixPending } from "@/lib/tracking";
+import { clickId, trackCardPending, trackLead, trackPixPending } from "@/lib/tracking";
 import { cn } from "@/lib/utils";
 import type { PaymentMethod, Product } from "@/types/product";
 
@@ -102,6 +102,9 @@ export function CheckoutFlow({ product, initialQty }: { product: Product; initia
           name: form.name, email: form.email, phone: form.phone, cpf: form.cpf,
           cardHash, installments,
           qty, shippingId, bumpIds, couponCode,
+          // Atribuicao: id de clique da Traffik para a venda no cartao aparecer
+          // no relatorio ligada a campanha que a originou (Pix ja e nativo).
+          clickId: clickId(),
           address: {
             cep: form.cep, street: form.street, number: form.number,
             complement: form.complement, district: form.district,

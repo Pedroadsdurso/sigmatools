@@ -6,6 +6,7 @@ import {
   type PrimeItem,
 } from "@/lib/primecash";
 import { sendOrderOnce } from "@/lib/magnus";
+import { sendSaleOnce } from "@/lib/traffik-ingest";
 import { isValidCpf, onlyDigits } from "@/lib/cpf";
 import { orderBumps, product, shippingOptions } from "@/data/product";
 import { calculateTotals, clampQty, findCoupon } from "@/lib/pricing";
@@ -44,6 +45,7 @@ interface Body {
   shippingId?: string;
   bumpIds?: string[];
   couponCode?: string;
+  clickId?: string;
   address?: Record<string, string>;
 }
 
@@ -119,6 +121,14 @@ export async function POST(request: Request) {
   const addr = body.address ?? {};
   const siteUrl = publicOrigin(request);
 
+  // click_id da Traffik: guardado no metadata para o webhook assincrono tambem
+  // conseguir atribuir a venda. Sanitizado para nao quebrar o formato
+  // chave=valor;chave=valor do metadata.
+  const clickId =
+    typeof body.clickId === "string"
+      ? body.clickId.replace(/[^\w.-]/g, "").slice(0, 128)
+      : "";
+
   try {
     const tx = await createCardTransaction({
       amountCents: totals.totalCents,
@@ -136,7 +146,7 @@ export async function POST(request: Request) {
         state: addr.state,
       },
       postbackUrl: `${siteUrl}/api/checkout/card/webhook?token=${process.env.PRIMECASH_WEBHOOK_SECRET ?? ""}`,
-      metadata: `produto=${product.sku};qtd=${totals.qty};bumps=${bumpIds.join(",") || "none"}`,
+      metadata: `produto=${product.sku};qtd=${totals.qty};bumps=${bumpIds.join(",") || "none"}${clickId ? `;click_id=${clickId}` : ""}`,
       ip: clientIp(request),
     });
 
@@ -160,6 +170,20 @@ export async function POST(request: Request) {
           price: Number((i.unitPrice / 100).toFixed(2)),
         })),
         total: Number((totals.totalCents / 100).toFixed(2)),
+      });
+
+      // Rastreamento: reporta a venda no cartao para a ferramenta propria
+      // (o Pix ja e nativo). Idempotente com o webhook via sendSaleOnce.
+      await sendSaleOnce({
+        transactionId: tx.id,
+        status: "approved",
+        value: Number((totals.totalCents / 100).toFixed(2)),
+        currency: "BRL",
+        product: product.name,
+        paymentMethod: "credit_card",
+        email,
+        name,
+        clickId: clickId || undefined,
       });
     }
 
