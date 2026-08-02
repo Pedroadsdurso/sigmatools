@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCardTransaction } from "@/lib/primecash";
 import { sendOrderOnce, type MagnusItem } from "@/lib/magnus";
-import { sendSaleOnce } from "@/lib/traffik-ingest";
+import { decodeAttribution, sendSaleOnce } from "@/lib/traffik-ingest";
 import { product } from "@/data/product";
 
 export const runtime = "nodejs";
@@ -62,8 +62,8 @@ export async function POST(request: Request) {
 
     // Rastreamento: reporta a venda no cartao para a ferramenta propria.
     // Idempotente com a resposta sincrona da cobranca via sendSaleOnce.
-    // O click_id, quando existe, viaja no metadata (gravado ao criar a
-    // transacao), ja que o postback nao carrega os parametros de atribuicao.
+    // click_id, UTMs, _fbc/_fbp, IP e pais viajam no metadata (gravados ao criar
+    // a transacao), ja que o postback nao carrega os parametros de atribuicao.
     const c = data?.customer;
     if (c?.name && c?.email) {
       await sendSaleOnce({
@@ -75,7 +75,9 @@ export async function POST(request: Request) {
         paymentMethod: "credit_card",
         email: c.email,
         name: c.name,
-        clickId: clickIdFromMetadata(data?.metadata),
+        // CPF/telefone tambem podem vir do proprio postback, mas o metadata ja
+        // os carrega de forma consistente com o caminho sincrono.
+        ...decodeAttribution(data?.metadata),
       });
     }
   }
@@ -146,19 +148,6 @@ interface PrimeData {
   };
   items?: { title: string; unitPrice?: number; quantity?: number; tangible?: boolean }[];
   metadata?: string;
-}
-
-/**
- * Extrai o click_id do metadata (formato chave=valor;chave=valor gravado ao
- * criar a transacao). Retorna undefined se ausente.
- */
-function clickIdFromMetadata(metadata?: string): string | undefined {
-  if (!metadata) return undefined;
-  for (const part of metadata.split(";")) {
-    const [k, v] = part.split("=");
-    if (k?.trim() === "click_id" && v?.trim()) return v.trim();
-  }
-  return undefined;
 }
 
 /** Comparacao de tamanho fixo, para nao vazar o segredo por tempo de resposta. */

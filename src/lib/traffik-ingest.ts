@@ -21,7 +21,35 @@
 const INGEST_ENDPOINT =
   process.env.TRAFFIK_INGEST_URL ?? "https://342dd-virid.vercel.app/api/webhook/ingest";
 
-export interface IngestSale {
+/**
+ * Sinais extras de atribuicao/enriquecimento (Meta CAPI + relatorio).
+ *
+ * Todos opcionais: quando ausentes, a ferramenta ainda atribui a venda pelo
+ * e-mail. Enviados em snake_case, o mesmo vocabulario do endpoint de ingestao.
+ */
+export interface IngestAttribution {
+  /** Id de clique da Traffik. */
+  clickId?: string;
+  /** Telefone do comprador (so digitos). */
+  phone?: string;
+  /** CPF do comprador (so digitos). */
+  document?: string;
+  /** IP do comprador (capturado no servidor). */
+  ip?: string;
+  /** Pais do comprador (ISO-2, ex.: "BR"), inferido do IP pela hospedagem. */
+  country?: string;
+  /** Cookie _fbc do Meta pixel. */
+  fbc?: string;
+  /** Cookie _fbp do Meta pixel. */
+  fbp?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmContent?: string;
+  utmTerm?: string;
+}
+
+export interface IngestSale extends IngestAttribution {
   transactionId: string;
   /** Status ja no vocabulario da ferramenta (ex.: "approved"). */
   status: string;
@@ -33,8 +61,61 @@ export interface IngestSale {
   paymentMethod?: string;
   email: string;
   name: string;
-  /** Id de clique da Traffik, para atribuicao. Opcional. */
-  clickId?: string;
+}
+
+/**
+ * Serializa os sinais de atribuicao para o campo `metadata` da PrimeCash
+ * (formato chave=valor;chave=valor). So o caminho SINCRONO da cobranca conhece
+ * utm/fbc/fbp/ip; o postback assincrono nao os recebe, entao guardamos aqui
+ * para recuperar depois. Valores sao URL-encoded para nao colidir com ; e =.
+ */
+export function encodeAttribution(a: IngestAttribution): string {
+  const pairs: [string, string | undefined][] = [
+    ["click_id", a.clickId],
+    ["ip", a.ip],
+    ["country", a.country],
+    ["fbc", a.fbc],
+    ["fbp", a.fbp],
+    ["utm_source", a.utmSource],
+    ["utm_medium", a.utmMedium],
+    ["utm_campaign", a.utmCampaign],
+    ["utm_content", a.utmContent],
+    ["utm_term", a.utmTerm],
+  ];
+  return pairs
+    .filter(([, v]) => v)
+    .map(([k, v]) => `${k}=${encodeURIComponent(v as string)}`)
+    .join(";");
+}
+
+/** Le de volta os sinais serializados em encodeAttribution (do metadata). */
+export function decodeAttribution(metadata?: string): IngestAttribution {
+  const out: IngestAttribution = {};
+  if (!metadata) return out;
+  const get = (key: string): string | undefined => {
+    for (const part of metadata.split(";")) {
+      const eq = part.indexOf("=");
+      if (eq < 0) continue;
+      if (part.slice(0, eq).trim() !== key) continue;
+      try {
+        return decodeURIComponent(part.slice(eq + 1));
+      } catch {
+        return part.slice(eq + 1);
+      }
+    }
+    return undefined;
+  };
+  out.clickId = get("click_id");
+  out.ip = get("ip");
+  out.country = get("country");
+  out.fbc = get("fbc");
+  out.fbp = get("fbp");
+  out.utmSource = get("utm_source");
+  out.utmMedium = get("utm_medium");
+  out.utmCampaign = get("utm_campaign");
+  out.utmContent = get("utm_content");
+  out.utmTerm = get("utm_term");
+  return out;
 }
 
 /**
@@ -67,7 +148,19 @@ export async function sendSale(sale: IngestSale): Promise<void> {
     email: sale.email,
     name: sale.name,
   };
+  // Enriquecimento: so vai o que existe, sempre em snake_case.
   if (sale.clickId) body.click_id = sale.clickId;
+  if (sale.phone) body.phone = sale.phone;
+  if (sale.document) body.document = sale.document;
+  if (sale.ip) body.ip = sale.ip;
+  if (sale.country) body.country = sale.country;
+  if (sale.fbc) body.fbc = sale.fbc;
+  if (sale.fbp) body.fbp = sale.fbp;
+  if (sale.utmSource) body.utm_source = sale.utmSource;
+  if (sale.utmMedium) body.utm_medium = sale.utmMedium;
+  if (sale.utmCampaign) body.utm_campaign = sale.utmCampaign;
+  if (sale.utmContent) body.utm_content = sale.utmContent;
+  if (sale.utmTerm) body.utm_term = sale.utmTerm;
 
   const res = await fetch(INGEST_ENDPOINT, {
     method: "POST",

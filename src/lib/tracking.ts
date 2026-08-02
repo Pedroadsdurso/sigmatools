@@ -46,6 +46,42 @@ export function clickId(): string | undefined {
   return typeof id === "string" && id ? id : undefined;
 }
 
+/** Le um cookie do documento pelo nome (browser). */
+function readCookie(name: string): string | undefined {
+  if (typeof document === "undefined") return undefined;
+  const m = document.cookie.match(new RegExp("(^|;)\\s*" + name + "\\s*=\\s*([^;]+)"));
+  return m ? decodeURIComponent(m.pop() as string) : undefined;
+}
+
+/**
+ * Sinais de atribuicao para enriquecer a venda no cartao (enviados ao nosso
+ * backend, que repassa a ferramenta). UTMs e click_id vem da Traffik; _fbc e
+ * _fbp sao cookies do pixel da Meta e melhoram o match no CAPI.
+ */
+export function attributionForSale(): {
+  clickId?: string;
+  fbc?: string;
+  fbp?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmContent?: string;
+  utmTerm?: string;
+} {
+  const a = attribution();
+  const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
+  return {
+    clickId: str(a.click_id),
+    fbc: readCookie("_fbc"),
+    fbp: readCookie("_fbp"),
+    utmSource: str(a.utm_source),
+    utmMedium: str(a.utm_medium),
+    utmCampaign: str(a.utm_campaign),
+    utmContent: str(a.utm_content),
+    utmTerm: str(a.utm_term),
+  };
+}
+
 /**
  * Guarda contra disparo duplicado.
  *
