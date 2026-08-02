@@ -10,7 +10,7 @@ import type { Coupon, OrderBump, Product, ShippingOption } from "@/types/product
  *
  * Um unico lugar para reverter: esta constante.
  */
-export const MODO_TESTE = true;
+export const MODO_TESTE = false;
 
 const PRECO = {
   real: { listCents: 19790, priceCents: 8990 },
