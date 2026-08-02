@@ -1,0 +1,130 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  /* O site usa Plus Jakarta Sans no corpo e a stack nativa do sistema nos
+     titulos (h1-h3 saem em system-ui weight 900). Manter as duas separadas e o
+     que reproduz o peso visual dos headings. */
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  --font-mono: ui-monospace, monospace;
+
+  /* Tokens proprios da marca SGT, extraidos do :root do site original. */
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-dark: var(--brand-dark);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-danger: var(--danger);
+
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --radius: 0.5rem;
+
+  /* Marca */
+  --brand: oklch(72% 0.19 55);
+  --brand-foreground: oklch(98% 0 0);
+  --brand-dark: oklch(45% 0.18 45);
+  --success: oklch(65% 0.19 145);
+  --success-foreground: oklch(98% 0 0);
+  --danger: oklch(62% 0.24 27);
+
+  /* Superficie: fundo cinza claro com cards brancos, como no original. */
+  --background: oklch(0.97 0 0);
+  --foreground: oklch(0.15 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.15 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0 0);
+  --primary: oklch(0.15 0 0);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.96 0 0);
+  --secondary-foreground: oklch(0.15 0 0);
+  --muted: oklch(0.96 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  --accent: oklch(0.96 0 0);
+  --accent-foreground: oklch(0.15 0 0);
+  --destructive: oklch(0.62 0.24 27);
+  --border: oklch(0.9 0 0);
+  --input: oklch(0.9 0 0);
+  --ring: oklch(0.72 0.19 55);
+
+  --gradient-hero: linear-gradient(180deg, oklch(98% 0 0), oklch(96% 0 0));
+  --shadow-brand: 0 20px 60px -20px var(--brand);
+  --shadow-card: 0 1px 3px #0000000f, 0 1px 2px #0000000a;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-heading);
+    font-weight: 900;
+  }
+
+  /* O Safari no iOS aplica zoom automatico ao focar um campo com fonte menor
+     que 16px, e a pagina fica deslocada depois. Forcar 16px abaixo do
+     breakpoint mobile elimina o zoom sem precisar de maximum-scale=1, que
+     bloquearia o zoom manual e quebraria a acessibilidade. */
+  @media (max-width: 1023px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+}
+
+@layer utilities {
+  /* Sombra dos cards brancos do original (shadow-sm do site, nao do Tailwind). */
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Esconde a scrollbar da tira de miniaturas mantendo o scroll funcional. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
