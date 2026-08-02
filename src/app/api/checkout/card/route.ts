@@ -9,7 +9,13 @@ import { sendOrderOnce } from "@/lib/magnus";
 import { encodeAttribution, sendSaleOnce, type IngestAttribution } from "@/lib/traffik-ingest";
 import { isValidCpf, onlyDigits } from "@/lib/cpf";
 import { orderBumps, product, shippingOptions } from "@/data/product";
-import { calculateTotals, clampQty, findCoupon } from "@/lib/pricing";
+import {
+  calculateTotals,
+  clampInstallments,
+  clampQty,
+  findCoupon,
+  installmentTotalCents,
+} from "@/lib/pricing";
 
 export const runtime = "nodejs";
 /** Cobranca nunca pode ser pre-renderizada nem cacheada. */
@@ -111,11 +117,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Dados invalidos.", fields: errors }, { status: 422 });
   }
 
-  // Parcelas dentro do limite do produto; o cliente nunca define o total.
-  const installments = Math.min(
-    Math.max(1, Math.trunc(Number(body.installments) || 1)),
-    product.installments,
-  );
+  // Parcelas dentro do limite (1..12); o cliente nunca define o total.
+  const installments = clampInstallments(body.installments);
 
   const shippingId = shippingOptions.some((s) => s.id === body.shippingId)
     ? body.shippingId!
@@ -155,6 +158,21 @@ export async function POST(request: Request) {
     });
   }
 
+  // Juros do parcelamento (ate 3x sem juros; 4x a 12x conforme a tabela). O
+  // valor cobrado e sempre recalculado no servidor a partir do total a vista —
+  // o cliente so escolhe o numero de parcelas, nunca o montante. A diferenca
+  // entra como item para a soma dos itens bater com o valor da transacao.
+  const chargeCents = installmentTotalCents(totals.totalCents, installments);
+  const interestCents = chargeCents - totals.totalCents;
+  if (interestCents > 0) {
+    items.push({
+      title: `Juros do parcelamento (${installments}x)`,
+      unitPrice: interestCents,
+      quantity: 1,
+      tangible: false,
+    });
+  }
+
   const addr = body.address ?? {};
   const siteUrl = publicOrigin(request);
 
@@ -179,7 +197,7 @@ export async function POST(request: Request) {
 
   try {
     const tx = await createCardTransaction({
-      amountCents: totals.totalCents,
+      amountCents: chargeCents,
       cardHash,
       installments,
       customer: { name, email, documentNumber: cpf, documentType: "cpf", phone },
@@ -217,7 +235,7 @@ export async function POST(request: Request) {
           quantity: i.quantity,
           price: Number((i.unitPrice / 100).toFixed(2)),
         })),
-        total: Number((totals.totalCents / 100).toFixed(2)),
+        total: Number((chargeCents / 100).toFixed(2)),
       });
 
       // Rastreamento: reporta a venda no cartao para a ferramenta propria
@@ -225,7 +243,7 @@ export async function POST(request: Request) {
       await sendSaleOnce({
         transactionId: tx.id,
         status: "approved",
-        value: Number((totals.totalCents / 100).toFixed(2)),
+        value: Number((chargeCents / 100).toFixed(2)),
         currency: "BRL",
         product: product.name,
         paymentMethod: "credit_card",
@@ -238,7 +256,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       id: tx.id,
       status: tx.status,
-      amountCents: totals.totalCents,
+      amountCents: chargeCents,
       refusedReason: tx.refusedReason ?? null,
     });
   } catch (err) {

@@ -24,6 +24,7 @@ import {
   formatBRL,
   pixPriceCents,
 } from "@/lib/format";
+import { INTEREST_FREE_INSTALLMENTS, MAX_INSTALLMENTS } from "@/lib/pricing";
 import type { Product } from "@/types/product";
 
 export function BuyBox({ product }: { product: Product }) {
@@ -32,7 +33,8 @@ export function BuyBox({ product }: { product: Product }) {
   const off = discountPercent(product.listPriceCents, product.priceCents);
   const { reais, centavos } = formatAmount(product.priceCents);
   const pix = pixPriceCents(product.priceCents, product.pixDiscount);
-  const installment = Math.round(product.priceCents / product.installments);
+  // Parcela anunciada = maior numero de vezes SEM juros (3x).
+  const installment = Math.round(product.priceCents / INTEREST_FREE_INSTALLMENTS);
 
   return (
     <div className="flex flex-col px-3 pt-3 lg:px-0 lg:pt-0">
@@ -117,7 +119,7 @@ export function BuyBox({ product }: { product: Product }) {
       </div>
 
       <p className="text-sm font-semibold text-muted-foreground">
-        ou {product.installments}x de {formatBRL(installment)} sem juros
+        ou {INTEREST_FREE_INSTALLMENTS}x de {formatBRL(installment)} sem juros
       </p>
 
       <div className="mt-2 flex w-fit items-center gap-2 rounded-md border border-success/30 bg-success/10 px-2.5 py-1.5">
@@ -150,7 +152,10 @@ export function BuyBox({ product }: { product: Product }) {
         </summary>
         <ul className="space-y-1 border-t border-border px-3 py-2.5 text-xs text-muted-foreground">
           <li>Pix — {formatBRL(pix)} com {Math.round(product.pixDiscount * 100)}% de desconto</li>
-          <li>Cartão de crédito — até {product.installments}x de {formatBRL(installment)} sem juros</li>
+          <li>
+            Cartão de crédito — até {MAX_INSTALLMENTS}x (em até {INTEREST_FREE_INSTALLMENTS}x de{" "}
+            {formatBRL(installment)} sem juros)
+          </li>
           <li>Boleto bancário — {formatBRL(product.priceCents)}</li>
         </ul>
       </details>
