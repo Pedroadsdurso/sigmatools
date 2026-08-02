@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCardTransaction } from "@/lib/primecash";
 import { sendOrderOnce, type MagnusItem } from "@/lib/magnus";
+import { decodeAttribution, sendSaleOnce } from "@/lib/traffik-ingest";
+import { product } from "@/data/product";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,6 +58,27 @@ export async function POST(request: Request) {
       await sendOrderOnce(tx.id, order);
     } else {
       console.error("[primecash] postback pago sem dados de cliente/itens", { tx: tx.id });
+    }
+
+    // Rastreamento: reporta a venda no cartao para a ferramenta propria.
+    // Idempotente com a resposta sincrona da cobranca via sendSaleOnce.
+    // click_id, UTMs, _fbc/_fbp, IP e pais viajam no metadata (gravados ao criar
+    // a transacao), ja que o postback nao carrega os parametros de atribuicao.
+    const c = data?.customer;
+    if (c?.name && c?.email) {
+      await sendSaleOnce({
+        transactionId: tx.id,
+        status: "approved",
+        value: Number((tx.amount / 100).toFixed(2)),
+        currency: "BRL",
+        product: product.name,
+        paymentMethod: "credit_card",
+        email: c.email,
+        name: c.name,
+        // CPF/telefone tambem podem vir do proprio postback, mas o metadata ja
+        // os carrega de forma consistente com o caminho sincrono.
+        ...decodeAttribution(data?.metadata),
+      });
     }
   }
 
@@ -124,6 +147,7 @@ interface PrimeData {
     };
   };
   items?: { title: string; unitPrice?: number; quantity?: number; tangible?: boolean }[];
+  metadata?: string;
 }
 
 /** Comparacao de tamanho fixo, para nao vazar o segredo por tempo de resposta. */

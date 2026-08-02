@@ -6,6 +6,7 @@ import {
   type PrimeItem,
 } from "@/lib/primecash";
 import { sendOrderOnce } from "@/lib/magnus";
+import { encodeAttribution, sendSaleOnce, type IngestAttribution } from "@/lib/traffik-ingest";
 import { isValidCpf, onlyDigits } from "@/lib/cpf";
 import { orderBumps, product, shippingOptions } from "@/data/product";
 import { calculateTotals, clampQty, findCoupon } from "@/lib/pricing";
@@ -33,6 +34,26 @@ function clientIp(request: Request): string | undefined {
   return fwd ? fwd.split(",")[0]!.trim() : undefined;
 }
 
+/**
+ * Pais do comprador inferido pela borda da hospedagem. Netlify expoe
+ * `x-nf-geo` (JSON com country.code); Vercel expoe `x-vercel-ip-country`.
+ * Retorna o ISO-2 (ex.: "BR") ou undefined.
+ */
+function clientCountry(request: Request): string | undefined {
+  const vercel = request.headers.get("x-vercel-ip-country");
+  if (vercel) return vercel.toUpperCase();
+  const nf = request.headers.get("x-nf-geo");
+  if (nf) {
+    try {
+      const geo = JSON.parse(nf) as { country?: { code?: string } };
+      if (geo.country?.code) return geo.country.code.toUpperCase();
+    } catch {
+      // header ausente/malformado: pais fica indefinido, sem quebrar a venda.
+    }
+  }
+  return request.headers.get("cf-ipcountry")?.toUpperCase() || undefined;
+}
+
 interface Body {
   name?: string;
   email?: string;
@@ -44,7 +65,25 @@ interface Body {
   shippingId?: string;
   bumpIds?: string[];
   couponCode?: string;
+  /** Sinais de atribuicao capturados no navegador (Traffik/Meta). */
+  attribution?: {
+    clickId?: string;
+    fbc?: string;
+    fbp?: string;
+    utmSource?: string;
+    utmMedium?: string;
+    utmCampaign?: string;
+    utmContent?: string;
+    utmTerm?: string;
+  };
   address?: Record<string, string>;
+}
+
+/** Aceita so string curta e limpa nos campos de atribuicao vindos do cliente. */
+function clean(v: unknown, max = 256): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const s = v.trim().slice(0, max);
+  return s || undefined;
 }
 
 export async function POST(request: Request) {
@@ -119,6 +158,25 @@ export async function POST(request: Request) {
   const addr = body.address ?? {};
   const siteUrl = publicOrigin(request);
 
+  // Atribuicao consolidada: o que veio do navegador (Traffik/Meta) + o que so o
+  // servidor conhece (telefone, CPF, IP, pais). Guardada no metadata para o
+  // webhook assincrono conseguir reportar a mesma venda com os mesmos sinais.
+  const attr: IngestAttribution = {
+    clickId: clean(body.attribution?.clickId, 128),
+    fbc: clean(body.attribution?.fbc),
+    fbp: clean(body.attribution?.fbp),
+    utmSource: clean(body.attribution?.utmSource),
+    utmMedium: clean(body.attribution?.utmMedium),
+    utmCampaign: clean(body.attribution?.utmCampaign),
+    utmContent: clean(body.attribution?.utmContent),
+    utmTerm: clean(body.attribution?.utmTerm),
+    phone,
+    document: cpf,
+    ip: clientIp(request),
+    country: clientCountry(request),
+  };
+  const attrMeta = encodeAttribution(attr);
+
   try {
     const tx = await createCardTransaction({
       amountCents: totals.totalCents,
@@ -136,8 +194,8 @@ export async function POST(request: Request) {
         state: addr.state,
       },
       postbackUrl: `${siteUrl}/api/checkout/card/webhook?token=${process.env.PRIMECASH_WEBHOOK_SECRET ?? ""}`,
-      metadata: `produto=${product.sku};qtd=${totals.qty};bumps=${bumpIds.join(",") || "none"}`,
-      ip: clientIp(request),
+      metadata: `produto=${product.sku};qtd=${totals.qty};bumps=${bumpIds.join(",") || "none"}${attrMeta ? `;${attrMeta}` : ""}`,
+      ip: attr.ip,
     });
 
     // Aprovacao sincrona (comum no cartao): dispara a Magnus imediatamente.
@@ -160,6 +218,20 @@ export async function POST(request: Request) {
           price: Number((i.unitPrice / 100).toFixed(2)),
         })),
         total: Number((totals.totalCents / 100).toFixed(2)),
+      });
+
+      // Rastreamento: reporta a venda no cartao para a ferramenta propria
+      // (o Pix ja e nativo). Idempotente com o webhook via sendSaleOnce.
+      await sendSaleOnce({
+        transactionId: tx.id,
+        status: "approved",
+        value: Number((totals.totalCents / 100).toFixed(2)),
+        currency: "BRL",
+        product: product.name,
+        paymentMethod: "credit_card",
+        email,
+        name,
+        ...attr,
       });
     }
 

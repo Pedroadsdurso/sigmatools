@@ -23,7 +23,12 @@ import { formatCpf, formatPhone } from "@/lib/cpf";
 import { formatBRL } from "@/lib/format";
 import { calculateTotals, findCoupon } from "@/lib/pricing";
 import { tokenizeCard, type CardInput } from "@/lib/primecash-client";
-import { trackCardPending, trackLead, trackPixPending } from "@/lib/tracking";
+import {
+  attributionForSale,
+  trackCardPending,
+  trackLead,
+  trackPixPending,
+} from "@/lib/tracking";
 import { cn } from "@/lib/utils";
 import type { PaymentMethod, Product } from "@/types/product";
 
@@ -102,6 +107,11 @@ export function CheckoutFlow({ product, initialQty }: { product: Product; initia
           name: form.name, email: form.email, phone: form.phone, cpf: form.cpf,
           cardHash, installments,
           qty, shippingId, bumpIds, couponCode,
+          // Atribuicao/enriquecimento: click_id, UTMs e cookies _fbc/_fbp da
+          // Traffik/Meta para a venda no cartao aparecer no relatorio ligada a
+          // campanha e melhorar o match do CAPI (o Pix ja e nativo). Telefone,
+          // CPF, IP e pais o servidor completa a partir do proprio pedido.
+          attribution: attributionForSale(),
           address: {
             cep: form.cep, street: form.street, number: form.number,
             complement: form.complement, district: form.district,
