@@ -18,6 +18,8 @@ declare global {
   interface Window {
     traffikPixel?: TraffikPixel;
     fbq?: (...args: unknown[]) => void;
+    gtag?: (...args: unknown[]) => void;
+    dataLayer?: unknown[];
     traffik?: { getData?: () => Record<string, unknown>; data?: Record<string, unknown> };
     /** Definida pelo layout so quando CONTEXT === "production" no Netlify. */
     __traffikAtivo?: number;
@@ -183,4 +185,13 @@ export function trackPurchase(
     metodo,
     transacao: transactionId,
   });
+
+  if (typeof window !== "undefined" && typeof window.gtag === "function") {
+    window.gtag("event", "conversion", {
+      send_to: "AW-18191887723/6qrxCPrM8NocEOvayOJD",
+      value: reais(totalCents),
+      currency: "BRL",
+      transaction_id: transactionId,
+    });
+  }
 }
