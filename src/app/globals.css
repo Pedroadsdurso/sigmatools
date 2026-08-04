@@ -99,18 +99,6 @@
     font-family: var(--font-heading);
     font-weight: 900;
   }
-
-  /* O Safari no iOS aplica zoom automatico ao focar um campo com fonte menor
-     que 16px, e a pagina fica deslocada depois. Forcar 16px abaixo do
-     breakpoint mobile elimina o zoom sem precisar de maximum-scale=1, que
-     bloquearia o zoom manual e quebraria a acessibilidade. */
-  @media (max-width: 1023px) {
-    input,
-    select,
-    textarea {
-      font-size: 16px;
-    }
-  }
 }
 
 @layer utilities {
@@ -126,5 +114,24 @@
   }
   .no-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Zoom automatico do iOS ao focar um campo — FORA de @layer de proposito.
+   O Safari no iPhone da zoom (e deixa a pagina deslocada, sem voltar sozinha)
+   sempre que o campo focado tem fonte menor que 16px. Os inputs do checkout
+   usam `text-sm` / `text-xs`, que sao utilities do Tailwind: qualquer regra
+   dentro de @layer base PERDE para a camada utilities, por isso a versao
+   anterior desta regra nao surtia efeito nenhum.
+   CSS sem camada vence todas as camadas, entao aqui o 16px prevalece sobre o
+   text-sm sem precisar de !important — e sem maximum-scale=1, que bloquearia
+   o zoom manual e quebraria a acessibilidade.
+   --------------------------------------------------------------------------- */
+@media (max-width: 1023px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px;
   }
 }

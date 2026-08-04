@@ -16,6 +16,7 @@ import {
   findCoupon,
   installmentTotalCents,
 } from "@/lib/pricing";
+import { buildFunnelSession, writeFunnelSession } from "@/lib/funnel-session";
 
 export const runtime = "nodejs";
 /** Cobranca nunca pode ser pre-renderizada nem cacheada. */
@@ -253,6 +254,30 @@ export async function POST(request: Request) {
       });
     }
 
+    // Sessao do funil pos-compra: com ela o upsell cobra em um clique, sem o
+    // cliente redigitar nada. Nao guarda cartao — o numero fica no navegador e
+    // e re-tokenizado a cada oferta (src/lib/card-vault.ts).
+    await writeFunnelSession(
+      buildFunnelSession({
+        tx: tx.id,
+        method: "card",
+        name,
+        email,
+        cpf,
+        phone,
+        address: {
+          cep: onlyDigits(addr.cep ?? ""),
+          street: addr.street,
+          number: addr.number,
+          complement: addr.complement,
+          district: addr.district,
+          city: addr.city,
+          state: addr.state,
+        },
+        attr: attrMeta || undefined,
+      }),
+    );
+
     return NextResponse.json({
       id: tx.id,
       status: tx.status,
@@ -273,6 +298,21 @@ export async function POST(request: Request) {
     }
     if (err instanceof PrimeCashError) {
       console.error("[primecash] falha ao criar transacao:", err.message, err.body);
+
+      // 401/403 NAO e recusa de cartao: e a nossa chave que a PrimeCash nao
+      // aceitou. Tratar junto com a recusa faria toda venda morrer com
+      // "pagamento nao aprovado" — o cliente trocaria de cartao para sempre e
+      // ninguem olharia a variavel de ambiente, que e o problema real.
+      if (err.status === 401 || err.status === 403) {
+        return NextResponse.json(
+          {
+            error:
+              "Gateway de cartao recusou as credenciais do servidor. Confira SECRET_TOKEN_PRIME_CASH nas variaveis de ambiente da hospedagem.",
+          },
+          { status: 503 },
+        );
+      }
+
       // 402: recusa da operadora/dados do cartao — a mensagem ajuda o cliente.
       const detail =
         typeof err.body === "object" && err.body !== null && "message" in err.body

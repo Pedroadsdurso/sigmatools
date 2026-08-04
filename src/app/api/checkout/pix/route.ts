@@ -9,6 +9,7 @@ import {
 import { isValidCpf, onlyDigits } from "@/lib/cpf";
 import { orderBumps, product, shippingOptions } from "@/data/product";
 import { calculateTotals, clampQty, findCoupon } from "@/lib/pricing";
+import { buildFunnelSession, writeFunnelSession } from "@/lib/funnel-session";
 
 import { encodeAttribution, type IngestAttribution } from "@/lib/traffik-ingest";
 
@@ -218,6 +219,33 @@ export async function POST(request: Request) {
       ? `data:image/png;base64,${charge.pixQrCode}`
       : await QRCode.toDataURL(charge.pixCode, { width: 440, margin: 1 });
 
+    // Sessao do funil pos-compra: guarda quem e o comprador para o upsell ser
+    // de UM clique. Gravada aqui, na criacao, e nao na confirmacao — o webhook
+    // do Pix roda no servidor da OnyxPag e nao tem como escrever um cookie no
+    // navegador do cliente. As telas do funil so abrem depois de reler o
+    // status no gateway, entao gravar antes do pagamento nao libera nada.
+    const addr = body.address ?? {};
+    await writeFunnelSession(
+      buildFunnelSession({
+        tx: charge.id,
+        method: "pix",
+        name,
+        email,
+        cpf,
+        phone,
+        address: {
+          cep: onlyDigits(addr.cep ?? ""),
+          street: addr.street,
+          number: addr.number,
+          complement: addr.complement,
+          district: addr.district,
+          city: addr.city,
+          state: addr.state,
+        },
+        attr: attrMeta || undefined,
+      }),
+    );
+
     return NextResponse.json({
       id: charge.id,
       pixCode: charge.pixCode,
@@ -241,6 +269,21 @@ export async function POST(request: Request) {
     }
     if (err instanceof OnyxPagError) {
       console.error("[onyxpag] falha ao criar cobranca:", err.message, err.body);
+
+      // Chave presente porem RECUSADA pela OnyxPag. Sem separar isso, uma
+      // credencial errada vira "tente novamente" para sempre: o cliente
+      // insiste, o Pix nunca sai, e nada no erro aponta para a variavel de
+      // ambiente, que e a causa real.
+      if (err.status === 401 || err.status === 403) {
+        return NextResponse.json(
+          {
+            error:
+              "Gateway de Pix recusou as credenciais do servidor. Confira ONYXPAG_PUBLIC_KEY e ONYXPAG_SECRET_KEY nas variaveis de ambiente.",
+          },
+          { status: 503 },
+        );
+      }
+
       return NextResponse.json(
         { error: "Nao foi possivel gerar o Pix agora. Tente novamente." },
         { status: 502 },

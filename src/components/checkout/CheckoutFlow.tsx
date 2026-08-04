@@ -18,6 +18,8 @@ import { OrderBumpCard } from "@/components/checkout/OrderBumpCard";
 import { PixPayment, type PixCharge } from "@/components/checkout/PixPayment";
 import { CardProcessing, type CardTx } from "@/components/checkout/CardProcessing";
 import { orderBumps, product, shippingOptions } from "@/data/product";
+import { FUNNEL_ENTRY_SLUG } from "@/data/funnel";
+import { saveCard } from "@/lib/card-vault";
 import { formatCep, isCompleteCep, lookupCep } from "@/lib/cep";
 import { formatCpf, formatPhone } from "@/lib/cpf";
 import { formatBRL } from "@/lib/format";
@@ -105,6 +107,12 @@ export function CheckoutFlow({ product, initialQty }: { product: Product; initia
     setCardError(null);
     setErrors({});
     try {
+      // Cofre da aba: o hash da PrimeCash e de uso unico e expira em minutos,
+      // entao ele nao serve para o upsell logo em seguida. Guardar o cartao
+      // aqui (so no navegador) e o que permite cobrar o funil com um clique,
+      // re-tokenizando na hora. Ver src/lib/card-vault.ts.
+      saveCard(card);
+
       const cardHash = await tokenizeCard(card);
 
       const res = await fetch("/api/checkout/card", {
@@ -140,9 +148,10 @@ export function CheckoutFlow({ product, initialQty }: { product: Product; initia
       }
 
       if (data.status === "paid") {
-        // Aprovacao imediata: o Purchase e disparado na /obrigado apos o
-        // servidor reconfirmar o pagamento na PrimeCash.
-        router.replace(`/obrigado?tx=${encodeURIComponent(data.id)}&m=card`);
+        // Aprovacao imediata: entra no funil pos-compra. O Purchase e disparado
+        // la na primeira oferta, depois de o servidor reconfirmar o pagamento
+        // na PrimeCash — e nao aqui, onde o status ainda veio do cliente.
+        router.replace(`/oferta/${FUNNEL_ENTRY_SLUG}`);
         return;
       }
 
@@ -665,6 +674,23 @@ function Step3({
   onCardSubmit: (card: CardInput, installments: number) => void;
   onBack: () => void;
 }) {
+  // Os bumps aparecem no painel ABERTO, seja Pix ou cartao. Antes eles viviam
+  // so dentro do painel do Pix: quem escolhia cartao nunca via a oferta, e o
+  // ticket medio dessa metade dos pedidos ficava menor sem motivo.
+  const bumps = (
+    <>
+      {orderBumps.map((bump) => (
+        <OrderBumpCard
+          key={bump.id}
+          bump={bump}
+          checked={bumpIds.includes(bump.id)}
+          onToggle={(on) => onToggleBump(bump.id, on)}
+          disabled={submitting || cardSubmitting}
+        />
+      ))}
+    </>
+  );
+
   return (
     <div className="space-y-3">
       <h2 className="flex items-center gap-2 text-base">
@@ -710,15 +736,7 @@ function Step3({
               <span className="font-black text-success">{formatBRL(totalCents)}</span>
             </p>
 
-            {orderBumps.map((bump) => (
-              <OrderBumpCard
-                key={bump.id}
-                bump={bump}
-                checked={bumpIds.includes(bump.id)}
-                onToggle={(on) => onToggleBump(bump.id, on)}
-                disabled={submitting}
-              />
-            ))}
+            {bumps}
 
             <button
               type="button"
@@ -778,6 +796,7 @@ function Step3({
             error={cardError}
             onSubmit={onCardSubmit}
             onSwitchToPix={() => onMethod("pix")}
+            bumps={bumps}
           />
         )}
       </div>
@@ -811,6 +830,7 @@ function CardForm({
   error,
   onSubmit,
   onSwitchToPix,
+  bumps,
 }: {
   /** Total a vista no cartao (sem juros), base para o calculo das parcelas. */
   baseTotalCents: number;
@@ -818,6 +838,8 @@ function CardForm({
   error: string | null;
   onSubmit: (card: CardInput, installments: number) => void;
   onSwitchToPix: () => void;
+  /** Ofertas complementares, renderizadas logo antes do botao de finalizar. */
+  bumps?: React.ReactNode;
 }) {
   const [card, setCard] = useState({ number: "", holder: "", expiry: "", cvv: "" });
   const [installments, setInstallments] = useState(1);
@@ -931,6 +953,11 @@ function CardForm({
           </p>
         )}
       </div>
+
+      {/* Os bumps vem DEPOIS dos dados do cartao e logo antes do botao: e o
+          ultimo ponto em que o cliente ainda esta decidindo, e nao interrompe
+          o preenchimento do cartao no meio. */}
+      {bumps}
 
       {error && (
         <div className="rounded-md border border-danger/30 bg-danger/5 px-3 py-3">

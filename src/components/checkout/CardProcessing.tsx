@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Check, Loader2, Lock } from "lucide-react";
+import { FUNNEL_ENTRY_SLUG } from "@/data/funnel";
 import { formatBRL } from "@/lib/format";
 
 /** Intervalo do polling de status do cartao. */
@@ -44,7 +45,9 @@ export function CardProcessing({
 
         if (data.paid) {
           clearInterval(timer);
-          router.replace(`/obrigado?tx=${encodeURIComponent(tx.id)}&m=card`);
+          // Aprovado: segue para o funil pos-compra, que reconfirma o status
+          // no servidor antes de mostrar qualquer oferta.
+          router.replace(`/oferta/${FUNNEL_ENTRY_SLUG}`);
         } else if (!data.pending) {
           // Nem pago nem pendente => recusado/cancelado.
           clearInterval(timer);

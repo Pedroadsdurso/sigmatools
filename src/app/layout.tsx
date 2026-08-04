@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import Script from "next/script";
 import { TestModeBanner } from "@/components/TestModeBanner";
@@ -19,6 +19,26 @@ export const metadata: Metadata = {
     icon: "/seo/favicon.ico",
     apple: "/seo/icon-192.svg",
   },
+};
+
+/**
+ * Viewport explicito. Junto da regra de 16px em globals.css, e o que impede o
+ * iOS de dar zoom ao focar um campo do checkout.
+ *
+ * `maximumScale` fica em 5 (e nao em 1): travar o zoom mataria o pinch-to-zoom
+ * de quem precisa dele. O zoom automatico e resolvido pelo tamanho da fonte,
+ * que e a causa real.
+ *
+ * `interactiveWidget: "resizes-content"` faz o teclado virtual encolher a
+ * viewport em vez de sobrepor a pagina — sem isso o campo focado fica atras do
+ * teclado no Android e a tela parece "pular".
+ */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  interactiveWidget: "resizes-content",
 };
 
 /**

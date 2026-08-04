@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { Clock, Mail, Package, ShieldCheck, Truck } from "lucide-react";
+import { Check, Clock, Mail, Package, ShieldCheck, Truck } from "lucide-react";
 import { PurchaseTracker } from "@/components/checkout/PurchaseTracker";
 import { getTransaction } from "@/lib/onyxpag";
 import { getCardTransaction } from "@/lib/primecash";
+import { readFunnelSession } from "@/lib/funnel-session";
 import { formatBRL } from "@/lib/format";
 import { store } from "@/data/product";
 
@@ -20,8 +21,14 @@ export default async function ObrigadoPage({
 }: {
   searchParams: Promise<{ tx?: string; m?: string }>;
 }) {
-  const { tx, m } = await searchParams;
-  const isCard = m === "card";
+  const { tx: txParam, m } = await searchParams;
+
+  // O funil termina aqui sem parametros na URL: os dados do pedido vem da
+  // sessao (cookie cifrado), que ja sabe qual transacao e por qual gateway.
+  const session = await readFunnelSession();
+  const tx = txParam ?? session?.tx;
+  const isCard = m ? m === "card" : session?.method === "card";
+  const extras = session?.extras ?? [];
 
   // O status vem da API, nunca da URL: sem isso bastaria abrir /obrigado?tx=x
   // para ver uma confirmacao de pagamento que nunca aconteceu.
@@ -132,6 +139,53 @@ export default async function ObrigadoPage({
             </p>
           )}
         </div>
+
+        {/* Aviso do rastreio — e a duvida numero 1 de quem acabou de comprar,
+            entao vem antes de qualquer outra coisa na pagina. */}
+        <div className="mt-4 rounded-lg border-2 border-success/40 bg-success/5 p-5 text-center sm:p-6">
+          <span className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-success/15">
+            <Mail className="size-6 text-success" aria-hidden />
+          </span>
+          <h2 className="text-base">O código de rastreio foi enviado para o seu e-mail</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm font-semibold text-muted-foreground">
+            Acabamos de enviar a confirmação
+            {session?.email ? (
+              <>
+                {" "}
+                para <strong className="text-foreground">{session.email}</strong>
+              </>
+            ) : (
+              " para o e-mail informado no checkout"
+            )}
+            . O código de rastreio chega no mesmo e-mail assim que o pacote for despachado —
+            acompanhe também a caixa de spam/promoções.
+          </p>
+        </div>
+
+        {extras.length > 0 && (
+          <div className="mt-4 rounded-lg bg-card p-6 shadow-card">
+            <h2 className="mb-1 text-base">Itens adicionados ao mesmo envio</h2>
+            <p className="mb-4 text-sm font-semibold text-muted-foreground">
+              Vão na mesma caixa, sem frete adicional.
+            </p>
+            <ul className="space-y-2">
+              {extras.map((e) => (
+                <li
+                  key={e.txId}
+                  className="flex items-start justify-between gap-3 border-b border-border pb-2 text-sm last:border-0 last:pb-0"
+                >
+                  <span className="flex min-w-0 gap-2 font-semibold">
+                    <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
+                    <span className="min-w-0">{e.name}</span>
+                  </span>
+                  <span className="shrink-0 font-black text-success">
+                    {formatBRL(e.priceCents)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="mt-4 rounded-lg bg-card p-6 shadow-card">
           <h2 className="mb-4 text-base">Próximos passos</h2>

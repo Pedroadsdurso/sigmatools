@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getTransaction } from "@/lib/onyxpag";
 import { decodeAttribution, sendSaleOnce, type IngestAttribution } from "@/lib/traffik-ingest";
 import { product } from "@/data/product";
+import { findOfferById } from "@/data/funnel";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -79,12 +80,19 @@ export async function POST(request: Request) {
 
     if (name && email) {
       const attr = extractAttribution(tx.metadata);
+      // Cobrancas do funil carregam `funil=<id>` no metadata. Sem isso toda
+      // venda de upsell entraria no relatorio com o nome do produto principal.
+      const oferta =
+        typeof tx.metadata === "object" && tx.metadata !== null
+          ? findOfferById(tx.metadata.funil)
+          : null;
+
       await sendSaleOnce({
         transactionId: tx.id,
         status: "approved",
         value: Number(tx.amount.toFixed(2)),
         currency: "BRL",
-        product: product.name,
+        product: oferta ? oferta.productName : product.name,
         paymentMethod: "pix",
         email,
         name,

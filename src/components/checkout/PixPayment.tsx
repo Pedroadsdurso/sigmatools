@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Check, Copy, Loader2 } from "lucide-react";
+import { FUNNEL_ENTRY_SLUG } from "@/data/funnel";
 import { formatBRL } from "@/lib/format";
 
 export interface PixCharge {
@@ -33,10 +34,10 @@ export function PixPayment({ charge }: { charge: PixCharge }) {
         const data: { paid?: boolean } = await res.json();
         if (!cancelled && data.paid) {
           setPaid(true);
-          // O Purchase NAO dispara aqui — quem dispara e a pagina de obrigado,
-          // que confirma o pagamento no servidor. Assim a venda so e contada
-          // uma vez, e apenas com status verificado.
-          router.replace(`/obrigado?tx=${encodeURIComponent(charge.id)}`);
+          // O Purchase NAO dispara aqui — quem dispara e a primeira tela do
+          // funil, que reconfirma o pagamento no servidor. Assim a venda so e
+          // contada uma vez, e apenas com status verificado.
+          router.replace(`/oferta/${FUNNEL_ENTRY_SLUG}`);
         }
       } catch {
         // Falha de rede no polling e transitoria — a proxima tentativa resolve.

@@ -13,7 +13,7 @@ import type { Coupon, OrderBump, Product, ShippingOption } from "@/types/product
 export const MODO_TESTE = false;
 
 const PRECO = {
-  real: { listCents: 19790, priceCents: 8990 },
+  real: { listCents: 19790, priceCents: 9770 },
   teste: { listCents: 990, priceCents: 500 },
 } as const;
 
