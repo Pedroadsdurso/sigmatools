@@ -30,7 +30,13 @@ import type { FunnelOffer } from "@/types/funnel";
  * este valor. O navegador manda apenas o id, nunca um montante.
  */
 
-/** Preco real x preco de teste, na mesma logica de src/data/product.ts. */
+/**
+ * Preco real x preco de teste, na mesma logica de src/data/product.ts.
+ *
+ * Nenhuma oferta desce de R$ 5,00 no modo teste: gateway costuma ter valor
+ * minimo por transacao, e uma cobranca de R$ 1,00 recusada por isso pareceria
+ * bug do funil quando o problema seria so o piso do adquirente.
+ */
 const preco = (real: number, teste: number) => (MODO_TESTE ? teste : real);
 
 export const funnelOffers: FunnelOffer[] = [
@@ -53,8 +59,8 @@ export const funnelOffers: FunnelOffer[] = [
     ],
     image: "/images/funnel/pack-3-shampoos-vfloc-v2.webp",
     imageAlt: "Pack com 3 frascos de Vonixx V-FLOC 500ml",
-    listPriceCents: preco(14970, 600),
-    priceCents: preco(6990, 200),
+    listPriceCents: preco(14970, 990),
+    priceCents: preco(6990, 500),
     acceptCta: "SIM! ADICIONAR AO MEU PEDIDO",
     declineCta: "Não, prefiro comprar depois pagando mais caro",
     next: { accept: "kit-limpa-vidros-3em1", decline: "kit-luva-vfloc" },
@@ -78,8 +84,8 @@ export const funnelOffers: FunnelOffer[] = [
     ],
     image: "/images/funnel/kit-luva-vfloc-v2.webp",
     imageAlt: "Kit com luva de microfibra, shampoo V-FLOC e brindes",
-    listPriceCents: preco(9990, 500),
-    priceCents: preco(5990, 150),
+    listPriceCents: preco(9990, 990),
+    priceCents: preco(5990, 500),
     acceptCta: "SIM! QUERO O KIT COM A LUVA",
     declineCta: "Não, obrigado — seguir sem o kit",
     next: { accept: "kit-limpa-vidros-3em1", decline: "kit-limpa-vidros-3em1" },
@@ -102,8 +108,8 @@ export const funnelOffers: FunnelOffer[] = [
     ],
     image: "/images/funnel/kit-limpa-vidros-3em1-v2.webp",
     imageAlt: "Kit 3 em 1 limpa vidros com rodo, spray e toalha de microfibra",
-    listPriceCents: preco(5990, 400),
-    priceCents: preco(2990, 100),
+    listPriceCents: preco(5990, 990),
+    priceCents: preco(2990, 500),
     acceptCta: "SIM! ADICIONAR POR R$ 29,90",
     declineCta: "Não quero o limpa vidros",
     next: { accept: null, decline: "escova-rodas-vonder" },
@@ -126,8 +132,8 @@ export const funnelOffers: FunnelOffer[] = [
     ],
     image: "/images/funnel/escova-rodas-vonder-v2.webp",
     imageAlt: "Escova macia Vonder para rodas automotivas",
-    listPriceCents: preco(8990, 400),
-    priceCents: preco(4990, 100),
+    listPriceCents: preco(8990, 990),
+    priceCents: preco(4990, 500),
     acceptCta: "SIM! QUERO A ESCOVA",
     declineCta: "Não, finalizar meu pedido",
     next: { accept: null, decline: null },
