@@ -92,13 +92,29 @@ export async function tokenizeCard(card: CardInput): Promise<string> {
   sdk.setPublicKey(PRIMECASH_PUBLIC_KEY);
   sdk.setTestMode(false);
 
-  const hash = await sdk.encrypt({
-    number: card.number.replace(/\s/g, ""),
-    holderName: card.holderName.trim(),
-    expMonth,
-    expYear,
-    cvv: card.cvv,
-  });
+  let hash: string;
+  try {
+    hash = await sdk.encrypt({
+      number: card.number.replace(/\s/g, ""),
+      holderName: card.holderName.trim(),
+      expMonth,
+      expYear,
+      cvv: card.cvv,
+    });
+  } catch (err) {
+    // A SDK rejeita com o corpo cru da resposta. Sem tratar, o cliente via um
+    // JSON no meio do checkout — e "Credenciais invalidas" ainda o levava a
+    // achar que o cartao DELE tinha problema, quando a chave errada e nossa.
+    const detalhe = err instanceof Error ? err.message : String(err);
+    console.error("[primecash] tokenizacao recusada:", detalhe);
+
+    if (/unauthorized|credenciais|401/i.test(detalhe)) {
+      throw new Error(
+        "Não conseguimos iniciar o pagamento no cartão agora. Pague pelo Pix — é aprovado na hora.",
+      );
+    }
+    throw new Error("Confira os dados do cartão e tente novamente.");
+  }
 
   if (!hash) throw new Error("Falha ao processar o cartao. Confira os dados e tente novamente.");
   return hash;

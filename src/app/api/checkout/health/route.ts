@@ -42,6 +42,17 @@ export async function GET(request: Request) {
       "ONYXPAG_WEBHOOK_SECRET ausente: a rota de webhook vai recusar todo postback.",
     );
   }
+  // A chave PUBLICA vive no browser e faz a tokenizacao do cartao. Ela e
+  // independente da secreta: da para ter a secreta certa (cobranca autentica)
+  // e a publica errada (nenhum cartao chega a virar hash). Sem checar aqui, a
+  // falha aparece so como um 401 dentro do checkout do cliente.
+  const chavePublicaEnv = process.env.NEXT_PUBLIC_PRIMECASH_PUBLIC_KEY?.trim();
+  if (!chavePublicaEnv) {
+    problemas.push(
+      "NEXT_PUBLIC_PRIMECASH_PUBLIC_KEY ausente: o checkout esta usando a chave publica embutida no codigo do template, que e de OUTRA conta. A tokenizacao do cartao vai falhar com 'Credenciais invalidas'. Pegue a chave publica no painel da sua PrimeCash.",
+    );
+  }
+
   if (!cardCreds.ok) {
     problemas.push(
       `Faltam as variaveis ${cardCreds.missing.join(" e ")} no ambiente. O pagamento no cartao (PrimeCash) nao sera processado ate elas existirem.`,
@@ -89,6 +100,9 @@ export async function GET(request: Request) {
         faltando: cardCreds.missing,
         apiUrl: process.env.PRIMECASH_API_URL ?? "https://api.primecashbrasil.com/v1",
         webhookSecret: process.env.PRIMECASH_WEBHOOK_SECRET ? "configurado" : "AUSENTE",
+        chavePublica: chavePublicaEnv
+          ? "configurada (da sua conta)"
+          : "AUSENTE — usando a chave embutida no template, de outra conta",
       },
       funil: {
         chaveDaSessao: funnelSecret && funnelSecret.length >= 16
