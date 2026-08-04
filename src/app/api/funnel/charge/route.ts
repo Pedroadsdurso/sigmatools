@@ -4,7 +4,7 @@ import { createCardTransaction, PrimeCashConfigError, PrimeCashError } from "@/l
 import { createPixCharge, OnyxPagConfigError, OnyxPagError } from "@/lib/onyxpag";
 import { readFunnelSession } from "@/lib/funnel-session";
 import { findOfferById } from "@/data/funnel";
-import { product } from "@/data/product";
+import { CARTAO_HABILITADO, product } from "@/data/product";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -79,7 +79,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const method = body.method === "pix" || body.method === "card" ? body.method : session.method;
+  // Com o cartao desligado, toda oferta e cobrada no Pix — inclusive para uma
+  // sessao antiga cujo pedido principal saiu no cartao.
+  const escolhido = body.method === "pix" || body.method === "card" ? body.method : session.method;
+  const method = CARTAO_HABILITADO ? escolhido : "pix";
   const siteUrl = publicOrigin(request);
   const addr = session.address;
 

@@ -8,7 +8,7 @@ import {
 import { sendOrderOnce } from "@/lib/magnus";
 import { encodeAttribution, sendSaleOnce, type IngestAttribution } from "@/lib/traffik-ingest";
 import { isValidCpf, onlyDigits } from "@/lib/cpf";
-import { orderBumps, product, shippingOptions } from "@/data/product";
+import { CARTAO_HABILITADO, orderBumps, product, shippingOptions } from "@/data/product";
 import {
   calculateTotals,
   clampInstallments,
@@ -94,6 +94,16 @@ function clean(v: unknown, max = 256): string | undefined {
 }
 
 export async function POST(request: Request) {
+  // A opcao some da tela quando o cartao esta desligado, mas a rota continua
+  // publica: sem esta guarda, um POST direto criaria uma cobranca que a
+  // adquirencia da PrimeCash vai recusar de qualquer forma.
+  if (!CARTAO_HABILITADO) {
+    return NextResponse.json(
+      { error: "Pagamento no cartão indisponível no momento. Finalize pelo Pix." },
+      { status: 503 },
+    );
+  }
+
   let body: Body;
   try {
     body = await request.json();

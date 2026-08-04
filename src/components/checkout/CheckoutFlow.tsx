@@ -17,7 +17,7 @@ import {
 import { OrderBumpCard } from "@/components/checkout/OrderBumpCard";
 import { PixPayment, type PixCharge } from "@/components/checkout/PixPayment";
 import { CardProcessing, type CardTx } from "@/components/checkout/CardProcessing";
-import { orderBumps, product, shippingOptions } from "@/data/product";
+import { CARTAO_HABILITADO, orderBumps, product, shippingOptions } from "@/data/product";
 import { FUNNEL_ENTRY_SLUG } from "@/data/funnel";
 import { saveCard } from "@/lib/card-vault";
 import { formatCep, isCompleteCep, lookupCep } from "@/lib/cep";
@@ -698,7 +698,9 @@ function Step3({
         Pagamento
       </h2>
       <p className="text-xs font-semibold text-muted-foreground">
-        Para finalizar seu pedido escolha uma forma de pagamento
+        {CARTAO_HABILITADO
+          ? "Para finalizar seu pedido escolha uma forma de pagamento"
+          : "Pague com Pix e receba a confirmação na hora"}
       </p>
 
       {/* Pix — painel expansivel, contem os order bumps e o CTA final. */}
@@ -760,10 +762,12 @@ function Step3({
         )}
       </div>
 
-      {/* Cartao de credito */}
+      {/* Cartao de credito — some por inteiro quando o gateway esta desativado
+          (ver CARTAO_HABILITADO em src/data/product.ts). */}
       <div
         className={cn(
           "rounded-lg border-2 transition-colors",
+          !CARTAO_HABILITADO && "hidden",
           method === "card" ? "border-success" : "border-border",
         )}
       >

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import Script from "next/script";
 import { TestModeBanner } from "@/components/TestModeBanner";
+import { CARTAO_HABILITADO } from "@/data/product";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -13,8 +14,12 @@ const jakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title:
     "Canhão de Espuma à Gravidade SIGMA 10930 — Canhão de Espuma · SGT Tools",
-  description:
-    "Canhão de Espuma Canhão de Espuma à Gravidade SIGMA 10930: ultraleve 350g, filtro interno, ajuste de concentração, conexão 1/4″. Frete grátis e 3x sem juros.",
+  // A descricao segue o interruptor do cartao: prometer "3x sem juros" no
+  // resultado de busca e no preview de link, com o checkout so aceitando Pix,
+  // atrai clique para uma pagina que nao entrega o que anunciou.
+  description: CARTAO_HABILITADO
+    ? "Canhão de Espuma Canhão de Espuma à Gravidade SIGMA 10930: ultraleve 350g, filtro interno, ajuste de concentração, conexão 1/4″. Frete grátis e 3x sem juros."
+    : "Canhão de Espuma Canhão de Espuma à Gravidade SIGMA 10930: ultraleve 350g, filtro interno, ajuste de concentração, conexão 1/4″. Frete grátis e 5% OFF no Pix.",
   icons: {
     icon: "/seo/favicon.ico",
     apple: "/seo/icon-192.svg",
@@ -61,10 +66,26 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className={`${jakarta.variable} h-full`}>
       <head>
-        {/* Google tag (gtag.js) */}
+        {/* Handshake (DNS + TLS) com os dominios de terceiros adiantado.
+            Sem isso o navegador so descobre que precisa falar com eles quando
+            o script ja esta na fila, e paga resolucao + TLS no meio do
+            carregamento — no 4G isso e facil 300ms por dominio. */}
+        <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="" />
+        <link rel="preconnect" href="https://connect.facebook.net" crossOrigin="" />
+        <link rel="dns-prefetch" href="https://www.facebook.com" />
+
+        {/* Google tag (gtag.js)
+            A BIBLIOTECA vai em lazyOnload: ela nao pinta nada na tela e so
+            precisa existir quando um evento for processado. Deixa-la em
+            afterInteractive fazia ~100KB competirem com a hidratacao.
+            O STUB abaixo continua em afterInteractive de proposito: e ele que
+            cria window.gtag e a fila do dataLayer. Sem o stub cedo, uma
+            conversao disparada antes da biblioteca chegar (a /obrigado dispara
+            no useEffect) cairia num window.gtag indefinido e a venda sumiria
+            do Google Ads. Com a fila, o evento espera e e processado depois. */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=AW-18191887723"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
         />
         <Script id="google-gtag" strategy="afterInteractive">{`
 window.dataLayer = window.dataLayer || [];

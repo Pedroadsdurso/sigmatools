@@ -15,6 +15,7 @@ import {
   Zap,
 } from "lucide-react";
 import { offerHref } from "@/data/funnel";
+import { CARTAO_HABILITADO } from "@/data/product";
 import { cardLast4, cardSnapshot, clearCard, loadCard, parseCard } from "@/lib/card-vault";
 import { formatBRL, discountPercent } from "@/lib/format";
 import { tokenizeCard } from "@/lib/primecash-client";
@@ -269,7 +270,9 @@ export function OfferFlow({
 
   const off = discountPercent(offer.listPriceCents, offer.priceCents);
   const busy = phase === "charging" || phase === "done";
-  const useCard = method === "card" && !pixFallback;
+  // Com o cartao desligado a oferta so cobra no Pix, mesmo que a sessao tenha
+  // nascido de um pedido pago no cartao antes do desligamento.
+  const useCard = CARTAO_HABILITADO && method === "card" && !pixFallback;
 
   if (phase === "done") {
     return (
