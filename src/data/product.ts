@@ -282,17 +282,19 @@ export const orderBumps: OrderBump[] = [
  * aceitas pela loja, e o checkout deixa claro na propria opcao de pagamento
  * que o cartao esta temporariamente indisponivel.
  */
-export const paymentBrands = [
-  { src: "/images/payment/card-pix.svg", alt: "Pix" },
-  { src: "/images/payment/visa.svg", alt: "Visa" },
-  { src: "/images/payment/mastercard.svg", alt: "Mastercard" },
-  { src: "/images/payment/elo.svg", alt: "Elo" },
-  { src: "/images/payment/american-express.svg", alt: "American Express" },
-  { src: "/images/payment/hipercard.svg", alt: "Hipercard" },
-  { src: "/images/payment/discover.svg", alt: "Discover" },
-  { src: "/images/payment/aura.svg", alt: "Aura" },
-  { src: "/images/payment/diners.svg", alt: "Diners" },
-];
+export const paymentBrands = CARTAO_HABILITADO
+  ? [
+      { src: "/images/payment/card-pix.svg", alt: "Pix" },
+      { src: "/images/payment/visa.svg", alt: "Visa" },
+      { src: "/images/payment/mastercard.svg", alt: "Mastercard" },
+      { src: "/images/payment/elo.svg", alt: "Elo" },
+      { src: "/images/payment/american-express.svg", alt: "American Express" },
+      { src: "/images/payment/hipercard.svg", alt: "Hipercard" },
+      { src: "/images/payment/discover.svg", alt: "Discover" },
+      { src: "/images/payment/aura.svg", alt: "Aura" },
+      { src: "/images/payment/diners.svg", alt: "Diners" },
+    ]
+  : [{ src: "/images/payment/card-pix.svg", alt: "Pix" }];
 
 export const store = {
   name: "SGT Tools",

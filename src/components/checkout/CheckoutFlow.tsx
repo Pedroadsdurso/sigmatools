@@ -703,31 +703,44 @@ function Step3({
           : "Pague com Pix e receba a confirmação na hora"}
       </p>
 
-      {/* Pix — painel expansivel, contem os order bumps e o CTA final. */}
+      {/* Pix — painel contendo os order bumps e o CTA final. */}
       <div
         className={cn(
           "rounded-lg border-2 transition-colors",
           method === "pix" ? "border-success" : "border-border",
         )}
       >
-        <button
-          type="button"
-          onClick={() => onMethod("pix")}
-          aria-pressed={method === "pix"}
-          className="flex w-full items-center gap-3 px-4 py-3 text-left"
-        >
-          <Radio active={method === "pix"} />
-          <span className="text-sm font-black">Pix</span>
-          <Image
-            src="/images/payment/card-pix.svg"
-            alt=""
-            width={39}
-            height={26}
-            className="ml-auto h-5 w-auto"
-          />
-        </button>
+        {CARTAO_HABILITADO ? (
+          <button
+            type="button"
+            onClick={() => onMethod("pix")}
+            aria-pressed={method === "pix"}
+            className="flex w-full items-center gap-3 px-4 py-3 text-left"
+          >
+            <Radio active={method === "pix"} />
+            <span className="text-sm font-black">Pix</span>
+            <Image
+              src="/images/payment/card-pix.svg"
+              alt=""
+              width={39}
+              height={26}
+              className="ml-auto h-5 w-auto"
+            />
+          </button>
+        ) : (
+          <div className="flex w-full items-center gap-3 px-4 py-3 text-left">
+            <span className="text-sm font-black">Pix</span>
+            <Image
+              src="/images/payment/card-pix.svg"
+              alt=""
+              width={39}
+              height={26}
+              className="ml-auto h-5 w-auto"
+            />
+          </div>
+        )}
 
-        {method === "pix" && (
+        {(method === "pix" || !CARTAO_HABILITADO) && (
           <div className="space-y-3 px-4 pb-4">
             <p className="text-xs font-semibold text-muted-foreground">
               Ao confirmar, um código Pix será gerado para você realizar o pagamento
@@ -762,77 +775,49 @@ function Step3({
         )}
       </div>
 
-      {/* Cartao de credito.
-          Com CARTAO_HABILITADO = false a opcao CONTINUA na tela, apagada e
-          nao clicavel, com o aviso do porque. Some-la faria o cliente que veio
-          decidido a parcelar achar que errou de loja e sair procurando o
-          cartao; visivel e explicada, ele entende que e temporario e conclui
-          no Pix. O <button> vira <div> para nao existir alvo de clique que
-          nao faz nada — e aria-disabled avisa o leitor de tela. */}
-      <div
-        className={cn(
-          "rounded-lg border-2 transition-colors",
-          !CARTAO_HABILITADO
-            ? "border-border bg-muted/40"
-            : method === "card"
-              ? "border-success"
-              : "border-border",
-        )}
-      >
-        <button
-          type="button"
-          onClick={() => CARTAO_HABILITADO && onMethod("card")}
-          disabled={!CARTAO_HABILITADO}
-          aria-disabled={!CARTAO_HABILITADO}
-          aria-pressed={CARTAO_HABILITADO ? method === "card" : undefined}
+      {/* Cartao de credito — nao entra no DOM enquanto CARTAO_HABILITADO for
+          false. */}
+      {CARTAO_HABILITADO && (
+        <div
           className={cn(
-            "flex w-full items-center gap-3 px-4 py-3 text-left",
-            !CARTAO_HABILITADO && "cursor-not-allowed opacity-55",
+            "rounded-lg border-2 transition-colors",
+            method === "card" ? "border-success" : "border-border",
           )}
         >
-          <Radio active={method === "card"} />
-          <span className="text-sm font-black">Cartão de crédito</span>
-          {!CARTAO_HABILITADO && (
-            <span className="rounded-full bg-muted-foreground/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-muted-foreground">
-              Indisponível
+          <button
+            type="button"
+            onClick={() => onMethod("card")}
+            aria-pressed={method === "card"}
+            className="flex w-full items-center gap-3 px-4 py-3 text-left"
+          >
+            <Radio active={method === "card"} />
+            <span className="text-sm font-black">Cartão de crédito</span>
+            <span className="ml-auto flex items-center gap-1">
+              {["visa", "mastercard", "elo"].map((b) => (
+                <Image
+                  key={b}
+                  src={`/images/payment/${b}.svg`}
+                  alt=""
+                  width={39}
+                  height={26}
+                  className="h-5 w-auto rounded border border-border bg-white p-0.5"
+                />
+              ))}
             </span>
+          </button>
+
+          {method === "card" && (
+            <CardForm
+              baseTotalCents={totalCents}
+              submitting={cardSubmitting}
+              error={cardError}
+              onSubmit={onCardSubmit}
+              onSwitchToPix={() => onMethod("pix")}
+              bumps={bumps}
+            />
           )}
-          <span className="ml-auto flex items-center gap-1">
-            {["visa", "mastercard", "elo"].map((b) => (
-              <Image
-                key={b}
-                src={`/images/payment/${b}.svg`}
-                alt=""
-                width={39}
-                height={26}
-                className="h-5 w-auto rounded border border-border bg-white p-0.5"
-              />
-            ))}
-          </span>
-        </button>
-
-        {!CARTAO_HABILITADO && (
-          <p className="flex items-start gap-2 border-t border-border px-4 py-3 text-xs font-semibold text-muted-foreground">
-            <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-            <span>
-              Pagamento no cartão temporariamente indisponível. Finalize pelo{" "}
-              <strong className="text-success">Pix</strong> — aprovação na hora e{" "}
-              {Math.round(product.pixDiscount * 100)}% de desconto.
-            </span>
-          </p>
-        )}
-
-        {CARTAO_HABILITADO && method === "card" && (
-          <CardForm
-            baseTotalCents={totalCents}
-            submitting={cardSubmitting}
-            error={cardError}
-            onSubmit={onCardSubmit}
-            onSwitchToPix={() => onMethod("pix")}
-            bumps={bumps}
-          />
-        )}
-      </div>
+        </div>
+      )}
 
       <button type="button" onClick={onBack} className="text-sm font-bold text-muted-foreground hover:text-foreground">
         ← Voltar para entrega
