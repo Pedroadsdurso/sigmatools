@@ -10,7 +10,7 @@ import type { Coupon, OrderBump, Product, ShippingOption } from "@/types/product
  *
  * Um unico lugar para reverter: esta constante.
  */
-export const MODO_TESTE = true;
+export const MODO_TESTE = false;
 
 /**
  * Cartao de credito ligado/desligado — INTERRUPTOR UNICO da loja.
@@ -278,25 +278,21 @@ export const orderBumps: OrderBump[] = [
 /**
  * Bandeiras exibidas no rodape e no checkout, na ordem do original.
  *
- * Com o cartao desligado sobra so o Pix: exibir Visa/Master ao lado de um
- * checkout que nao aceita cartao e promessa que a pagina seguinte quebra.
+ * Continuam todas visiveis mesmo com o cartao desligado: sao as bandeiras
+ * aceitas pela loja, e o checkout deixa claro na propria opcao de pagamento
+ * que o cartao esta temporariamente indisponivel.
  */
-export const paymentBrands = (CARTAO_HABILITADO
-  ? [
-      { src: "/images/payment/card-pix.svg", alt: "Pix" },
-      { src: "/images/payment/visa.svg", alt: "Visa" },
-      { src: "/images/payment/mastercard.svg", alt: "Mastercard" },
-      { src: "/images/payment/elo.svg", alt: "Elo" },
-      { src: "/images/payment/american-express.svg", alt: "American Express" },
-      { src: "/images/payment/hipercard.svg", alt: "Hipercard" },
-      { src: "/images/payment/discover.svg", alt: "Discover" },
-      { src: "/images/payment/aura.svg", alt: "Aura" },
-      { src: "/images/payment/diners.svg", alt: "Diners" },
-    ]
-  : [{ src: "/images/payment/card-pix.svg", alt: "Pix" }]) as {
-  src: string;
-  alt: string;
-}[];
+export const paymentBrands = [
+  { src: "/images/payment/card-pix.svg", alt: "Pix" },
+  { src: "/images/payment/visa.svg", alt: "Visa" },
+  { src: "/images/payment/mastercard.svg", alt: "Mastercard" },
+  { src: "/images/payment/elo.svg", alt: "Elo" },
+  { src: "/images/payment/american-express.svg", alt: "American Express" },
+  { src: "/images/payment/hipercard.svg", alt: "Hipercard" },
+  { src: "/images/payment/discover.svg", alt: "Discover" },
+  { src: "/images/payment/aura.svg", alt: "Aura" },
+  { src: "/images/payment/diners.svg", alt: "Diners" },
+];
 
 export const store = {
   name: "SGT Tools",

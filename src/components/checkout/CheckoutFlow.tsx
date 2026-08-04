@@ -762,23 +762,41 @@ function Step3({
         )}
       </div>
 
-      {/* Cartao de credito — some por inteiro quando o gateway esta desativado
-          (ver CARTAO_HABILITADO em src/data/product.ts). */}
+      {/* Cartao de credito.
+          Com CARTAO_HABILITADO = false a opcao CONTINUA na tela, apagada e
+          nao clicavel, com o aviso do porque. Some-la faria o cliente que veio
+          decidido a parcelar achar que errou de loja e sair procurando o
+          cartao; visivel e explicada, ele entende que e temporario e conclui
+          no Pix. O <button> vira <div> para nao existir alvo de clique que
+          nao faz nada — e aria-disabled avisa o leitor de tela. */}
       <div
         className={cn(
           "rounded-lg border-2 transition-colors",
-          !CARTAO_HABILITADO && "hidden",
-          method === "card" ? "border-success" : "border-border",
+          !CARTAO_HABILITADO
+            ? "border-border bg-muted/40"
+            : method === "card"
+              ? "border-success"
+              : "border-border",
         )}
       >
         <button
           type="button"
-          onClick={() => onMethod("card")}
-          aria-pressed={method === "card"}
-          className="flex w-full items-center gap-3 px-4 py-3 text-left"
+          onClick={() => CARTAO_HABILITADO && onMethod("card")}
+          disabled={!CARTAO_HABILITADO}
+          aria-disabled={!CARTAO_HABILITADO}
+          aria-pressed={CARTAO_HABILITADO ? method === "card" : undefined}
+          className={cn(
+            "flex w-full items-center gap-3 px-4 py-3 text-left",
+            !CARTAO_HABILITADO && "cursor-not-allowed opacity-55",
+          )}
         >
           <Radio active={method === "card"} />
           <span className="text-sm font-black">Cartão de crédito</span>
+          {!CARTAO_HABILITADO && (
+            <span className="rounded-full bg-muted-foreground/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-muted-foreground">
+              Indisponível
+            </span>
+          )}
           <span className="ml-auto flex items-center gap-1">
             {["visa", "mastercard", "elo"].map((b) => (
               <Image
@@ -793,7 +811,18 @@ function Step3({
           </span>
         </button>
 
-        {method === "card" && (
+        {!CARTAO_HABILITADO && (
+          <p className="flex items-start gap-2 border-t border-border px-4 py-3 text-xs font-semibold text-muted-foreground">
+            <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+            <span>
+              Pagamento no cartão temporariamente indisponível. Finalize pelo{" "}
+              <strong className="text-success">Pix</strong> — aprovação na hora e{" "}
+              {Math.round(product.pixDiscount * 100)}% de desconto.
+            </span>
+          </p>
+        )}
+
+        {CARTAO_HABILITADO && method === "card" && (
           <CardForm
             baseTotalCents={totalCents}
             submitting={cardSubmitting}
