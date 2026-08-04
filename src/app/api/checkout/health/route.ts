@@ -53,6 +53,28 @@ export async function GET(request: Request) {
     );
   }
 
+  // O cookie do funil guarda nome, e-mail, CPF e endereco do comprador. Sem
+  // chave propria ele e cifrado com o valor de desenvolvimento que esta no
+  // repositorio publico — qualquer um poderia forjar uma sessao e ler/alterar
+  // dados de pedido. Por isso entra como problema, e nao como aviso.
+  const funnelSecret = process.env.FUNNEL_SESSION_SECRET;
+  const funnelHerdado =
+    process.env.PRIMECASH_WEBHOOK_SECRET ??
+    process.env.ONYXPAG_WEBHOOK_SECRET ??
+    process.env.SECRET_TOKEN_PRIME_CASH;
+
+  if (!funnelSecret || funnelSecret.length < 16) {
+    if (funnelHerdado && funnelHerdado.length >= 16) {
+      problemas.push(
+        "FUNNEL_SESSION_SECRET ausente: a sessao do funil esta reaproveitando outro segredo do ambiente. Funciona, mas defina uma chave propria.",
+      );
+    } else {
+      problemas.push(
+        "FUNNEL_SESSION_SECRET ausente e sem segredo para herdar: o cookie do funil esta sendo cifrado com a chave de desenvolvimento que esta no repositorio. Defina a variavel AGORA.",
+      );
+    }
+  }
+
   return NextResponse.json(
     {
       ok: problemas.length === 0,
@@ -67,6 +89,13 @@ export async function GET(request: Request) {
         faltando: cardCreds.missing,
         apiUrl: process.env.PRIMECASH_API_URL ?? "https://api.primecashbrasil.com/v1",
         webhookSecret: process.env.PRIMECASH_WEBHOOK_SECRET ? "configurado" : "AUSENTE",
+      },
+      funil: {
+        chaveDaSessao: funnelSecret && funnelSecret.length >= 16
+          ? "configurada"
+          : funnelHerdado && funnelHerdado.length >= 16
+            ? "HERDADA de outro segredo"
+            : "AUSENTE (usando chave de desenvolvimento)",
       },
       origemEfetiva,
       problemas,
