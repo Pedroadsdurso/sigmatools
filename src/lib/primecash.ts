@@ -202,7 +202,26 @@ export async function createCardTransaction(input: CreateCardInput): Promise<Pri
       quantity: i.quantity,
       tangible: i.tangible,
     })),
-    ...(input.shipping ? { shipping: input.shipping } : {}),
+    // A doc espera shipping = { fee, address: { ... } }, com `country`. Antes
+    // os campos iam soltos na raiz de shipping, formato que a API nao le: o
+    // endereco de entrega chegava vazio na PrimeCash.
+    ...(input.shipping
+      ? {
+          shipping: {
+            fee: 0,
+            address: {
+              street: input.shipping.street,
+              streetNumber: input.shipping.streetNumber,
+              complement: input.shipping.complement,
+              zipCode: input.shipping.zipCode,
+              neighborhood: input.shipping.neighborhood,
+              city: input.shipping.city,
+              state: input.shipping.state,
+              country: "br",
+            },
+          },
+        }
+      : {}),
     ...(input.postbackUrl ? { postbackUrl: input.postbackUrl } : {}),
     ...(input.metadata ? { metadata: input.metadata } : {}),
     ...(input.ip ? { ip: input.ip } : {}),
