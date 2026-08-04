@@ -299,26 +299,47 @@ export async function POST(request: Request) {
     if (err instanceof PrimeCashError) {
       console.error("[primecash] falha ao criar transacao:", err.message, err.body);
 
-      // 401/403 NAO e recusa de cartao: e a nossa chave que a PrimeCash nao
-      // aceitou. Tratar junto com a recusa faria toda venda morrer com
-      // "pagamento nao aprovado" — o cliente trocaria de cartao para sempre e
-      // ninguem olharia a variavel de ambiente, que e o problema real.
-      if (err.status === 401 || err.status === 403) {
+      const raw =
+        typeof err.body === "object" && err.body !== null && "message" in err.body
+          ? String((err.body as { message: unknown }).message)
+          : "";
+
+      // Falha de credencial NAO e recusa de cartao. Vem por dois caminhos:
+      // o status HTTP da propria PrimeCash (401/403) ou, o que acontece na
+      // pratica, um "Unauthorized" de um subsistema dela ANINHADO no corpo de
+      // uma resposta com outro status. Tratar isso como recusa faria toda
+      // venda morrer com "pagamento nao aprovado": o cliente trocaria de
+      // cartao para sempre e ninguem olharia a configuracao, que e a causa.
+      const falhaDeCredencial =
+        err.status === 401 ||
+        err.status === 403 ||
+        /unauthorized|credenciais\s+inv/i.test(raw);
+
+      if (falhaDeCredencial) {
+        console.error("[primecash] CREDENCIAL RECUSADA pelo gateway:", raw || err.message);
         return NextResponse.json(
           {
             error:
-              "Gateway de cartao recusou as credenciais do servidor. Confira SECRET_TOKEN_PRIME_CASH nas variaveis de ambiente da hospedagem.",
+              "Não foi possível processar o cartão agora. Pague pelo Pix — é aprovado na hora.",
           },
           { status: 503 },
         );
       }
 
       // 402: recusa da operadora/dados do cartao — a mensagem ajuda o cliente.
-      const detail =
-        typeof err.body === "object" && err.body !== null && "message" in err.body
-          ? String((err.body as { message: unknown }).message)
-          : "Pagamento nao aprovado. Verifique os dados do cartao ou tente outro.";
-      return NextResponse.json({ error: detail }, { status: 402 });
+      // Mas so repassamos texto curto e legivel: a PrimeCash as vezes devolve
+      // um JSON inteiro em `message`, e isso ia cru para a tela do comprador.
+      const legivel = raw && !raw.trimStart().startsWith("{") && raw.length <= 160;
+      if (raw && !legivel) console.error("[primecash] recusa com corpo nao legivel:", raw);
+
+      return NextResponse.json(
+        {
+          error: legivel
+            ? raw
+            : "Pagamento nao aprovado. Verifique os dados do cartao ou tente outro.",
+        },
+        { status: 402 },
+      );
     }
     throw err;
   }

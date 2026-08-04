@@ -147,19 +147,35 @@ export async function POST(request: Request) {
       if (err instanceof PrimeCashError) {
         console.error("[funil/cartao] falha ao cobrar oferta:", offer.id, err.message, err.body);
 
-        // Credencial do servidor recusada — nao e o cartao do cliente.
-        if (err.status === 401 || err.status === 403) {
+        const raw =
+          typeof err.body === "object" && err.body !== null && "message" in err.body
+            ? String((err.body as { message: unknown }).message)
+            : "";
+
+        // Mesma regra da rota principal: credencial recusada (por status ou
+        // aninhada no corpo) nao e recusa de cartao, e nada disso vai cru para
+        // a tela. Ver comentario extenso em /api/checkout/card.
+        if (
+          err.status === 401 ||
+          err.status === 403 ||
+          /unauthorized|credenciais\s+inv/i.test(raw)
+        ) {
+          console.error("[funil/cartao] CREDENCIAL RECUSADA pelo gateway:", raw || err.message);
           return NextResponse.json(
-            { error: "Gateway de cartao recusou as credenciais do servidor." },
+            { error: "Não foi possível cobrar no cartão agora. Pague esta oferta pelo Pix." },
             { status: 503 },
           );
         }
 
-        const detail =
-          typeof err.body === "object" && err.body !== null && "message" in err.body
-            ? String((err.body as { message: unknown }).message)
-            : "Pagamento nao aprovado. Tente outro cartao ou pague com Pix.";
-        return NextResponse.json({ error: detail }, { status: 402 });
+        const legivel = raw && !raw.trimStart().startsWith("{") && raw.length <= 160;
+        return NextResponse.json(
+          {
+            error: legivel
+              ? raw
+              : "Pagamento nao aprovado. Tente outro cartao ou pague com Pix.",
+          },
+          { status: 402 },
+        );
       }
       throw err;
     }
