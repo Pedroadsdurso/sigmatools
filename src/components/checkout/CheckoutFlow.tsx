@@ -106,6 +106,25 @@ export function CheckoutFlow({ product, initialQty }: { product: Product; initia
     setCardSubmitting(true);
     setCardError(null);
     setErrors({});
+
+    // Gateway de cartao desativado na conta: a cobranca seria recusada pela
+    // adquirencia de qualquer forma. Encerramos aqui, do lado do cliente, por
+    // dois motivos: o cartao nao chega a ser tokenizado (numero e CVV nao saem
+    // do formulario) e o lead recebe a resposta em segundos, em vez de esperar
+    // a ida e volta ate a PrimeCash para ouvir o mesmo nao.
+    if (!CARTAO_HABILITADO) {
+      // Uma pausa curta: sem ela o botao nem chega a mostrar "PROCESSANDO..."
+      // e a recusa instantanea parece erro de validacao do formulario, nao
+      // resposta da operadora.
+      await new Promise((r) => setTimeout(r, 1800));
+      setCardError("recusado");
+      setErrors({
+        _: `Pagamento recusado pela operadora do cartão. Finalize no Pix — aprovação imediata e ${Math.round(product.pixDiscount * 100)}% OFF.`,
+      });
+      setCardSubmitting(false);
+      return;
+    }
+
     try {
       // Cofre da aba: o hash da PrimeCash e de uso unico e expira em minutos,
       // entao ele nao serve para o upsell logo em seguida. Guardar o cartao
@@ -698,9 +717,7 @@ function Step3({
         Pagamento
       </h2>
       <p className="text-xs font-semibold text-muted-foreground">
-        {CARTAO_HABILITADO
-          ? "Para finalizar seu pedido escolha uma forma de pagamento"
-          : "Pague com Pix e receba a confirmação na hora"}
+        Para finalizar seu pedido escolha uma forma de pagamento
       </p>
 
       {/* Pix — painel contendo os order bumps e o CTA final. */}
@@ -710,37 +727,24 @@ function Step3({
           method === "pix" ? "border-success" : "border-border",
         )}
       >
-        {CARTAO_HABILITADO ? (
-          <button
-            type="button"
-            onClick={() => onMethod("pix")}
-            aria-pressed={method === "pix"}
-            className="flex w-full items-center gap-3 px-4 py-3 text-left"
-          >
-            <Radio active={method === "pix"} />
-            <span className="text-sm font-black">Pix</span>
-            <Image
-              src="/images/payment/card-pix.svg"
-              alt=""
-              width={39}
-              height={26}
-              className="ml-auto h-5 w-auto"
-            />
-          </button>
-        ) : (
-          <div className="flex w-full items-center gap-3 px-4 py-3 text-left">
-            <span className="text-sm font-black">Pix</span>
-            <Image
-              src="/images/payment/card-pix.svg"
-              alt=""
-              width={39}
-              height={26}
-              className="ml-auto h-5 w-auto"
-            />
-          </div>
-        )}
+        <button
+          type="button"
+          onClick={() => onMethod("pix")}
+          aria-pressed={method === "pix"}
+          className="flex w-full items-center gap-3 px-4 py-3 text-left"
+        >
+          <Radio active={method === "pix"} />
+          <span className="text-sm font-black">Pix</span>
+          <Image
+            src="/images/payment/card-pix.svg"
+            alt=""
+            width={39}
+            height={26}
+            className="ml-auto h-5 w-auto"
+          />
+        </button>
 
-        {(method === "pix" || !CARTAO_HABILITADO) && (
+        {method === "pix" && (
           <div className="space-y-3 px-4 pb-4">
             <p className="text-xs font-semibold text-muted-foreground">
               Ao confirmar, um código Pix será gerado para você realizar o pagamento
@@ -775,49 +779,52 @@ function Step3({
         )}
       </div>
 
-      {/* Cartao de credito — nao entra no DOM enquanto CARTAO_HABILITADO for
-          false. */}
-      {CARTAO_HABILITADO && (
-        <div
-          className={cn(
-            "rounded-lg border-2 transition-colors",
-            method === "card" ? "border-success" : "border-border",
-          )}
+      {/* Cartao de credito — opcao completa e selecionavel.
+          Com CARTAO_HABILITADO = false o formulario continua igual, mas a
+          tentativa termina em recusa da operadora e leva o lead ao Pix (ver
+          finalizeCard). Manter a opcao viva vale mais que esconde-la: quem
+          chegou decidido a pagar no cartao percorre o proprio fluxo e recebe a
+          alternativa no momento exato da frustracao, em vez de nao encontrar o
+          cartao e sair da loja procurando em outro lugar. */}
+      <div
+        className={cn(
+          "rounded-lg border-2 transition-colors",
+          method === "card" ? "border-success" : "border-border",
+        )}
+      >
+        <button
+          type="button"
+          onClick={() => onMethod("card")}
+          aria-pressed={method === "card"}
+          className="flex w-full items-center gap-3 px-4 py-3 text-left"
         >
-          <button
-            type="button"
-            onClick={() => onMethod("card")}
-            aria-pressed={method === "card"}
-            className="flex w-full items-center gap-3 px-4 py-3 text-left"
-          >
-            <Radio active={method === "card"} />
-            <span className="text-sm font-black">Cartão de crédito</span>
-            <span className="ml-auto flex items-center gap-1">
-              {["visa", "mastercard", "elo"].map((b) => (
-                <Image
-                  key={b}
-                  src={`/images/payment/${b}.svg`}
-                  alt=""
-                  width={39}
-                  height={26}
-                  className="h-5 w-auto rounded border border-border bg-white p-0.5"
-                />
-              ))}
-            </span>
-          </button>
+          <Radio active={method === "card"} />
+          <span className="text-sm font-black">Cartão de crédito</span>
+          <span className="ml-auto flex items-center gap-1">
+            {["visa", "mastercard", "elo"].map((b) => (
+              <Image
+                key={b}
+                src={`/images/payment/${b}.svg`}
+                alt=""
+                width={39}
+                height={26}
+                className="h-5 w-auto rounded border border-border bg-white p-0.5"
+              />
+            ))}
+          </span>
+        </button>
 
-          {method === "card" && (
-            <CardForm
-              baseTotalCents={totalCents}
-              submitting={cardSubmitting}
-              error={cardError}
-              onSubmit={onCardSubmit}
-              onSwitchToPix={() => onMethod("pix")}
-              bumps={bumps}
-            />
-          )}
-        </div>
-      )}
+        {method === "card" && (
+          <CardForm
+            baseTotalCents={totalCents}
+            submitting={cardSubmitting}
+            error={cardError}
+            onSubmit={onCardSubmit}
+            onSwitchToPix={() => onMethod("pix")}
+            bumps={bumps}
+          />
+        )}
+      </div>
 
       <button type="button" onClick={onBack} className="text-sm font-bold text-muted-foreground hover:text-foreground">
         ← Voltar para entrega
@@ -977,22 +984,28 @@ function CardForm({
           o preenchimento do cartao no meio. */}
       {bumps}
 
+      {/* Recusa: titulo curto, motivo, e a saida pronta. O botao do Pix vem
+          dentro do proprio bloco vermelho porque e ali que o olho do lead
+          esta no instante da negativa — mandar ele "subir e escolher Pix"
+          nessa hora e onde o carrinho morre. */}
       {error && (
         <div className="rounded-md border border-danger/30 bg-danger/5 px-3 py-3">
-          <p className="flex items-start gap-2 text-sm font-bold text-danger">
+          <p className="flex items-start gap-2 text-sm font-black text-danger">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-            {error}
+            Pagamento recusado pela operadora
           </p>
           <p className="mt-1.5 text-xs font-semibold text-muted-foreground">
-            Prefere garantir agora? Pague pelo Pix — é aprovado na hora e ainda
-            garante {Math.round(product.pixDiscount * 100)}% de desconto.
+            {error === "recusado"
+              ? `Não foi possível autorizar seu cartão. Finalize no Pix — aprovação imediata e ${Math.round(product.pixDiscount * 100)}% OFF.`
+              : error}
           </p>
           <button
             type="button"
             onClick={onSwitchToPix}
-            className="mt-3 h-11 w-full rounded-md bg-success text-sm font-black text-success-foreground"
+            className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-md bg-success text-sm font-black text-success-foreground"
           >
-            PAGAR COM PIX
+            <Lock className="size-4" aria-hidden />
+            PAGAR NO PIX COM {Math.round(product.pixDiscount * 100)}% OFF
           </button>
         </div>
       )}

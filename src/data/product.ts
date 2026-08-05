@@ -13,16 +13,23 @@ import type { Coupon, OrderBump, Product, ShippingOption } from "@/types/product
 export const MODO_TESTE = false;
 
 /**
- * Cartao de credito ligado/desligado — INTERRUPTOR UNICO da loja.
+ * Cartao de credito processa ou nao — INTERRUPTOR UNICO da loja.
  *
  * Desligado em 04/08/2026: a PrimeCash informou que o processamento de cartao
  * esta desativado na conta, e toda tentativa voltava com "Credenciais
- * invalidas" da adquirencia deles. Deixar a opcao visivel custava a venda
- * inteira — o cliente tentava, falhava e ia embora em vez de pagar no Pix.
+ * invalidas" vindo da adquirencia deles.
  *
- * Com `false`, some tudo que promete cartao: a forma de pagamento no checkout,
- * o parcelamento anunciado na vitrine, as bandeiras no rodape e a resposta do
- * FAQ. As rotas de cobranca tambem recusam, para o caso de alguem chamar a API
+ * Com `false` a opcao de cartao CONTINUA no checkout, completa e selecionavel,
+ * e a vitrine segue anunciando o parcelamento. O que muda e o desfecho da
+ * tentativa: em vez de ir ate a PrimeCash ouvir o mesmo nao, o checkout
+ * responde recusa da operadora e oferece o Pix ali mesmo, com o desconto.
+ *
+ * A escolha e deliberada. Esconder o cartao fazia quem chegou decidido a
+ * parcelar achar que errou de loja e sair procurar em outro lugar; deixando o
+ * fluxo dele acontecer, a alternativa chega no momento exato da frustracao,
+ * que e quando ela e aceita.
+ *
+ * As rotas de cobranca tambem recusam, para o caso de alguem chamar a API
  * direto. O Pix (OnyxPag) nao e afetado em nada.
  *
  * Para reativar quando a PrimeCash liberar: troque para `true`.
@@ -204,9 +211,8 @@ export const product: Product = {
     },
     {
       question: "O pagamento é seguro?",
-      answer: CARTAO_HABILITADO
-        ? "100%. Checkout com criptografia SSL, aceitamos Pix, cartão em até 3x sem juros (ou até 12x com juros) e boleto."
-        : "100%. Checkout com criptografia SSL e pagamento via Pix — aprovação na hora e 5% de desconto no valor final.",
+      answer:
+        "100%. Checkout com criptografia SSL, aceitamos Pix, cartão em até 3x sem juros (ou até 12x com juros) e boleto.",
     },
     {
       question: "O que vem na caixa?",
@@ -278,23 +284,21 @@ export const orderBumps: OrderBump[] = [
 /**
  * Bandeiras exibidas no rodape e no checkout, na ordem do original.
  *
- * Continuam todas visiveis mesmo com o cartao desligado: sao as bandeiras
- * aceitas pela loja, e o checkout deixa claro na propria opcao de pagamento
- * que o cartao esta temporariamente indisponivel.
+ * Todas continuam visiveis: sao as bandeiras aceitas pela loja, e a opcao de
+ * cartao segue no checkout. A indisponibilidade e comunicada no momento da
+ * tentativa, junto da saida pelo Pix.
  */
-export const paymentBrands = CARTAO_HABILITADO
-  ? [
-      { src: "/images/payment/card-pix.svg", alt: "Pix" },
-      { src: "/images/payment/visa.svg", alt: "Visa" },
-      { src: "/images/payment/mastercard.svg", alt: "Mastercard" },
-      { src: "/images/payment/elo.svg", alt: "Elo" },
-      { src: "/images/payment/american-express.svg", alt: "American Express" },
-      { src: "/images/payment/hipercard.svg", alt: "Hipercard" },
-      { src: "/images/payment/discover.svg", alt: "Discover" },
-      { src: "/images/payment/aura.svg", alt: "Aura" },
-      { src: "/images/payment/diners.svg", alt: "Diners" },
-    ]
-  : [{ src: "/images/payment/card-pix.svg", alt: "Pix" }];
+export const paymentBrands = [
+  { src: "/images/payment/card-pix.svg", alt: "Pix" },
+  { src: "/images/payment/visa.svg", alt: "Visa" },
+  { src: "/images/payment/mastercard.svg", alt: "Mastercard" },
+  { src: "/images/payment/elo.svg", alt: "Elo" },
+  { src: "/images/payment/american-express.svg", alt: "American Express" },
+  { src: "/images/payment/hipercard.svg", alt: "Hipercard" },
+  { src: "/images/payment/discover.svg", alt: "Discover" },
+  { src: "/images/payment/aura.svg", alt: "Aura" },
+  { src: "/images/payment/diners.svg", alt: "Diners" },
+];
 
 export const store = {
   name: "SGT Tools",

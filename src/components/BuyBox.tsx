@@ -18,7 +18,6 @@ import {
 import { CountdownTimer } from "@/components/CountdownTimer";
 import { ShippingCalculator } from "@/components/ShippingCalculator";
 import { ViewersCounter } from "@/components/ViewersCounter";
-import { CARTAO_HABILITADO } from "@/data/product";
 import { trackInitiateCheckout } from "@/lib/tracking";
 import {
   discountPercent,
@@ -120,11 +119,9 @@ export function BuyBox({ product }: { product: Product }) {
         <span className="mt-2 text-xl font-bold">,{centavos}</span>
       </div>
 
-      {CARTAO_HABILITADO && (
-        <p className="text-sm font-semibold text-muted-foreground">
-          ou {INTEREST_FREE_INSTALLMENTS}x de {formatBRL(installment)} sem juros
-        </p>
-      )}
+      <p className="text-sm font-semibold text-muted-foreground">
+        ou {INTEREST_FREE_INSTALLMENTS}x de {formatBRL(installment)} sem juros
+      </p>
 
       <div className="mt-2 flex w-fit items-center gap-2 rounded-md border border-success/30 bg-success/10 px-2.5 py-1.5">
         <Image
@@ -156,15 +153,11 @@ export function BuyBox({ product }: { product: Product }) {
         </summary>
         <ul className="space-y-1 border-t border-border px-3 py-2.5 text-xs text-muted-foreground">
           <li>Pix — {formatBRL(pix)} com {Math.round(product.pixDiscount * 100)}% de desconto</li>
-          {CARTAO_HABILITADO && (
-            <>
-              <li>
-                Cartão de crédito — até {MAX_INSTALLMENTS}x (em até{" "}
-                {INTEREST_FREE_INSTALLMENTS}x de {formatBRL(installment)} sem juros)
-              </li>
-              <li>Boleto bancário — {formatBRL(product.priceCents)}</li>
-            </>
-          )}
+          <li>
+            Cartão de crédito — até {MAX_INSTALLMENTS}x (em até{" "}
+            {INTEREST_FREE_INSTALLMENTS}x de {formatBRL(installment)} sem juros)
+          </li>
+          <li>Boleto bancário — {formatBRL(product.priceCents)}</li>
         </ul>
       </details>
 

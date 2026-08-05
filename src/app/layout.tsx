@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import Script from "next/script";
 import { TestModeBanner } from "@/components/TestModeBanner";
-import { CARTAO_HABILITADO } from "@/data/product";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -14,12 +13,8 @@ const jakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title:
     "Canhão de Espuma à Gravidade SIGMA 10930 — Canhão de Espuma · SGT Tools",
-  // A descricao segue o interruptor do cartao: prometer "3x sem juros" no
-  // resultado de busca e no preview de link, com o checkout so aceitando Pix,
-  // atrai clique para uma pagina que nao entrega o que anunciou.
-  description: CARTAO_HABILITADO
-    ? "Canhão de Espuma Canhão de Espuma à Gravidade SIGMA 10930: ultraleve 350g, filtro interno, ajuste de concentração, conexão 1/4″. Frete grátis e 3x sem juros."
-    : "Canhão de Espuma Canhão de Espuma à Gravidade SIGMA 10930: ultraleve 350g, filtro interno, ajuste de concentração, conexão 1/4″. Frete grátis e 5% OFF no Pix.",
+  description:
+    "Canhão de Espuma Canhão de Espuma à Gravidade SIGMA 10930: ultraleve 350g, filtro interno, ajuste de concentração, conexão 1/4″. Frete grátis e 3x sem juros.",
   icons: {
     icon: "/seo/favicon.ico",
     apple: "/seo/icon-192.svg",
